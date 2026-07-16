@@ -27,6 +27,43 @@ $$;
 revoke all on function public.is_authorized_user() from public;
 grant execute on function public.is_authorized_user() to authenticated;
 
+create or replace function public.hook_restrict_signup_to_authorized(event jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  requested_email text;
+begin
+  requested_email := lower(coalesce(event -> 'user' ->> 'email', ''));
+
+  if exists (
+    select 1
+    from public.authorized_users
+    where lower(email) = requested_email
+      and active = true
+  ) then
+    return '{}'::jsonb;
+  end if;
+
+  return jsonb_build_object(
+    'error', jsonb_build_object(
+      'http_code', 403,
+      'message', 'Cette adresse email ne fait pas partie des utilisateurs autorisés.'
+    )
+  );
+end;
+$$;
+
+grant execute
+  on function public.hook_restrict_signup_to_authorized(jsonb)
+  to supabase_auth_admin;
+
+revoke execute
+  on function public.hook_restrict_signup_to_authorized(jsonb)
+  from authenticated, anon, public;
+
 drop policy if exists "authorized_users_select_own" on public.authorized_users;
 create policy "authorized_users_select_own"
 on public.authorized_users

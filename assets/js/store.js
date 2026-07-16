@@ -218,7 +218,7 @@ export async function continueAsGuest() {
 }
 
 export async function registerUser({ name, email, password }) {
-  if (isRestrictedAccess() || appConfig.allowPublicSignup === false) {
+  if (appConfig.allowPublicSignup === false) {
     throw new Error("PUBLIC_SIGNUP_DISABLED");
   }
   const normalizedEmail = String(email || "").trim().toLowerCase();

@@ -37,15 +37,20 @@ forgotPasswordButton.addEventListener("click", handlePasswordReset);
 
 function configureAccessMode() {
   const guestAllowed = !restrictedAccess && appConfig.allowGuestAccess !== false;
-  const signupAllowed = !restrictedAccess && appConfig.allowPublicSignup !== false;
+  const signupAllowed = appConfig.allowPublicSignup !== false;
   document.getElementById("guestCard")?.classList.toggle("hidden", !guestAllowed);
   document.getElementById("signupCard")?.classList.toggle("hidden", !signupAllowed);
   document.querySelector(".auth-grid")?.classList.toggle("restricted-auth-grid", restrictedAccess);
   if (restrictedAccess) {
-    document.getElementById("authIntro").textContent = t(
-      "Cet espace est privé. Utilisez les identifiants transmis par l'administrateur.",
-      "This is a private area. Use the credentials provided by the administrator."
-    );
+    document.getElementById("authIntro").textContent = signupAllowed
+      ? t(
+        "Cet espace est privé. Seules les adresses préalablement autorisées peuvent créer un compte.",
+        "This is a private area. Only pre-approved email addresses can create an account."
+      )
+      : t(
+        "Cet espace est privé. Utilisez les identifiants transmis par l'administrateur.",
+        "This is a private area. Use the credentials provided by the administrator."
+      );
   }
 }
 
@@ -105,7 +110,10 @@ async function handleSignup() {
     }
 
     redirectAfterAuth();
-  }, t("Impossible de créer le compte. Vérifiez les champs ou utilisez un autre email.", "Unable to create the account. Check the fields or use another email address."));
+  }, t(
+    "Impossible de créer le compte. Vérifiez que cette adresse a été autorisée par l'administrateur et qu'elle n'est pas déjà utilisée.",
+    "Unable to create the account. Check that this email was approved by the administrator and is not already in use."
+  ));
 }
 
 async function handlePasswordReset() {

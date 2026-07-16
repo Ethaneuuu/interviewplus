@@ -6,7 +6,7 @@ GitHub Pages héberge l'interface statique. Supabase fournit gratuitement l'auth
 
 La version privée applique les règles suivantes :
 
-- aucune inscription publique ;
+- inscription possible uniquement pour les adresses présentes dans `authorized_users` ;
 - aucun mode invité ;
 - seuls les comptes créés par l'administrateur peuvent se connecter ;
 - chaque utilisateur possède son propre email et son propre mot de passe ;
@@ -20,11 +20,12 @@ La version privée applique les règles suivantes :
 2. Exécuter `supabase/schema.sql` dans l'éditeur SQL.
 3. Ouvrir Storage, puis le bucket privé `interviewplus-private`.
 4. Importer `Questions_InterviewPlus_Bilingual.xlsx` à la racine du bucket.
-5. Dans Authentication > Providers > Email, désactiver `Allow new users to sign up`.
-6. Ajouter chaque adresse autorisée dans `Table Editor > authorized_users`.
-7. Dans Authentication > Users, créer manuellement la même personne avec son email et un mot de passe temporaire.
-8. Copier l'URL du projet et la clé publique `anon` dans `assets/js/config.js`.
-9. Appliquer cette configuration :
+5. Dans Authentication > Providers > Email, activer `Allow new users to sign up`.
+6. Dans Authentication > Hooks, activer `Before User Created` avec la fonction Postgres `hook_restrict_signup_to_authorized`.
+7. Ajouter chaque adresse autorisée dans `Table Editor > authorized_users`.
+8. La personne peut ensuite créer elle-même son compte et son mot de passe sur InterviewPlus.
+9. Copier l'URL du projet et la clé publique `anon` dans `assets/js/config.js`.
+10. Appliquer cette configuration :
 
 ```js
 window.INTERVIEWPLUS_CONFIG = {
@@ -32,7 +33,7 @@ window.INTERVIEWPLUS_CONFIG = {
   supabaseUrl: "https://VOTRE-PROJET.supabase.co",
   supabaseAnonKey: "VOTRE_CLE_PUBLIQUE_ANON",
   restrictedAccess: true,
-  allowPublicSignup: false,
+  allowPublicSignup: true,
   allowGuestAccess: false,
   privateQuestionBucket: "interviewplus-private",
   privateQuestionPath: "Questions_InterviewPlus_Bilingual.xlsx",
@@ -43,7 +44,7 @@ La clé `anon` est conçue pour être publique. La sécurité repose sur l'authe
 
 ## Ajouter ou retirer une personne
 
-- Ajouter : créer d'abord son entrée dans `authorized_users`, puis utiliser Authentication > Users > Add user.
+- Ajouter : créer son entrée dans `authorized_users`, puis lui demander de s'inscrire sur InterviewPlus.
 - Retirer : passer `active` à `false` dans `authorized_users`, puis bannir l'utilisateur dans Authentication > Users.
 - Réinitialiser son mot de passe : envoyer une récupération depuis Supabase ou utiliser le bouton prévu sur la page de connexion.
 

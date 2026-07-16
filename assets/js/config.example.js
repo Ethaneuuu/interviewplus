@@ -3,7 +3,7 @@ window.INTERVIEWPLUS_CONFIG = {
   supabaseUrl: "https://your-project-ref.supabase.co",
   supabaseAnonKey: "your-public-anon-key",
   restrictedAccess: true,
-  allowPublicSignup: false,
+  allowPublicSignup: true,
   allowGuestAccess: false,
   privateQuestionBucket: "interviewplus-private",
   privateQuestionPath: "Questions_InterviewPlus_Bilingual.xlsx",
