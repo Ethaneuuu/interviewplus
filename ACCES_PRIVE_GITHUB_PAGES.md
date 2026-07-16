@@ -21,11 +21,10 @@ La version privée applique les règles suivantes :
 3. Ouvrir Storage, puis le bucket privé `interviewplus-private`.
 4. Importer `Questions_InterviewPlus_Bilingual.xlsx` à la racine du bucket.
 5. Dans Authentication > Providers > Email, activer `Allow new users to sign up`.
-6. Dans Authentication > Hooks, activer `Before User Created` avec la fonction Postgres `hook_restrict_signup_to_authorized`.
-7. Ajouter chaque adresse autorisée dans `Table Editor > authorized_users`.
-8. La personne peut ensuite créer elle-même son compte et son mot de passe sur InterviewPlus.
-9. Copier l'URL du projet et la clé publique `anon` dans `assets/js/config.js`.
-10. Appliquer cette configuration :
+6. Ajouter chaque adresse autorisée dans `Table Editor > authorized_users`.
+7. La personne peut ensuite créer elle-même son compte et son mot de passe sur InterviewPlus.
+8. Copier l'URL du projet et la clé publique `anon` dans `assets/js/config.js`.
+9. Appliquer cette configuration :
 
 ```js
 window.INTERVIEWPLUS_CONFIG = {
@@ -41,6 +40,8 @@ window.INTERVIEWPLUS_CONFIG = {
 ```
 
 La clé `anon` est conçue pour être publique. La sécurité repose sur l'authentification et les règles RLS du fichier `supabase/schema.sql`. Ne jamais placer la clé `service_role` dans le site.
+
+Une personne absente de `authorized_users` peut éventuellement créer un enregistrement Auth si les inscriptions Supabase sont ouvertes, mais elle est immédiatement déconnectée et les règles RLS lui interdisent le classeur, les sessions et les profils. Pour éviter également ces comptes inutilisés, conserver les inscriptions fermées et créer les comptes manuellement depuis Authentication > Users.
 
 ## Ajouter ou retirer une personne
 
