@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterviewPlus | Profil</title>
+  <meta name="description" content="Visualisez votre progression InterviewPlus par categorie et vos axes de travail M&A.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/app.css">
+  <script src="./assets/js/config.js"></script>
+  <script defer src="./assets/js/xlsx.full.min.js"></script>
+  <script type="module" defer src="./assets/js/profile.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <img class="brand-logo" src="./assets/img/interviewplus-logo.svg" alt="InterviewPlus">
+      </a>
+      <nav class="topnav">
+        <a class="nav-link" href="./index.html">Accueil</a>
+        <a class="nav-link" href="./setup.html">Nouvelle session</a>
+        <a class="nav-link" href="./results.html">Sessions</a>
+        <a class="nav-link is-active" href="./profile.html">Profil</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="page-header simple-header">
+        <div>
+          <p class="eyebrow">Profil</p>
+          <h1 id="profileTitle">Votre progression</h1>
+          <p class="page-intro">Identifiez vos categories fortes et celles a retravailler.</p>
+        </div>
+      </section>
+
+      <section class="grid grid-3" id="profileMetrics"></section>
+
+      <section class="grid grid-2">
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Points forts</p>
+              <h2>Categories ou vous excellez</h2>
+            </div>
+          </div>
+          <div id="strongChart" class="chart-list"></div>
+        </article>
+
+        <article class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Axes de travail</p>
+              <h2>Categories a renforcer</h2>
+            </div>
+          </div>
+          <div id="weakChart" class="chart-list"></div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>InterviewPlus</span>
+      <span>Preparation M&A premium</span>
+      <a href="mailto:contact@interviewplus.fr">Contact</a>
+    </footer>
+  </div>
+</body>
+</html>

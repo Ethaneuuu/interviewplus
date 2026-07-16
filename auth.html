@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterviewPlus | Connexion</title>
+  <meta name="description" content="Creez votre compte InterviewPlus ou connectez-vous pour enregistrer vos sessions M&A.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/app.css">
+  <script src="./assets/js/config.js"></script>
+  <script type="module" defer src="./assets/js/auth.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <img class="brand-logo" src="./assets/img/interviewplus-logo.svg" alt="InterviewPlus">
+      </a>
+      <nav class="topnav">
+        <a class="nav-link" href="./index.html">Accueil</a>
+        <a class="nav-link is-active" href="./auth.html">Connexion</a>
+      </nav>
+    </header>
+
+    <main class="page auth-page">
+      <section class="page-header simple-header auth-intro">
+        <p class="eyebrow">Espace candidat</p>
+        <h1>Retrouvez vos sessions et votre progression.</h1>
+        <p class="page-intro" id="authIntro">Connectez-vous pour reprendre l'entrainement, ou creez un compte en quelques secondes.</p>
+      </section>
+
+      <section class="auth-grid">
+        <article class="auth-card panel guest-card" id="guestCard">
+          <p class="eyebrow">Mode invite</p>
+          <h2>Essayer sans compte</h2>
+          <p class="page-intro">Lancez une session immediatement. Vos resultats restent sauvegardes localement sur cet appareil.</p>
+          <button class="button button-primary" id="guestButton" type="button">Continuer en invite</button>
+        </article>
+
+        <article class="auth-card panel" id="signupCard">
+          <p class="eyebrow">Connexion</p>
+          <h2>Bon retour parmi nous</h2>
+          <div class="field-stack">
+            <label class="field">
+              <span>Email</span>
+              <input id="loginEmail" type="email" autocomplete="email" placeholder="vous@email.com">
+            </label>
+            <div class="field">
+              <span>Mot de passe</span>
+              <div class="password-field">
+                <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Votre mot de passe">
+                <button class="password-toggle" type="button" data-toggle-password="loginPassword">Afficher</button>
+              </div>
+            </div>
+          </div>
+          <div class="auth-actions">
+            <button class="button button-primary" id="loginButton" type="button">Se connecter</button>
+            <button class="link-button" id="forgotPasswordButton" type="button">Mot de passe oublie ?</button>
+          </div>
+        </article>
+
+        <article class="auth-card panel">
+          <p class="eyebrow">Inscription</p>
+          <h2>Creer mon profil</h2>
+          <div class="field-stack">
+            <label class="field">
+              <span>Nom</span>
+              <input id="signupName" type="text" autocomplete="name" placeholder="Votre nom">
+            </label>
+            <label class="field">
+              <span>Email</span>
+              <input id="signupEmail" type="email" autocomplete="email" placeholder="vous@email.com">
+            </label>
+            <div class="field">
+              <span>Mot de passe</span>
+              <div class="password-field">
+                <input id="signupPassword" type="password" autocomplete="new-password" placeholder="Choisissez un mot de passe">
+                <button class="password-toggle" type="button" data-toggle-password="signupPassword">Afficher</button>
+              </div>
+              <div class="password-meter" id="passwordMeter" aria-hidden="true"><span></span></div>
+              <p class="field-hint" id="passwordHint">Minimum 8 caracteres, avec idealement chiffre et majuscule.</p>
+            </div>
+            <div class="field">
+              <span>Confirmer le mot de passe</span>
+              <div class="password-field">
+                <input id="signupPasswordConfirm" type="password" autocomplete="new-password" placeholder="Confirmez le mot de passe">
+                <button class="password-toggle" type="button" data-toggle-password="signupPasswordConfirm">Afficher</button>
+              </div>
+            </div>
+          </div>
+          <button class="button button-secondary" id="signupButton" type="button">Creer mon compte</button>
+        </article>
+      </section>
+
+      <p class="inline-note auth-message" id="authMessage" role="alert" aria-live="polite"></p>
+    </main>
+
+    <footer class="site-footer">
+      <span>InterviewPlus</span>
+      <span>Preparation M&A premium</span>
+      <a href="mailto:contact@interviewplus.fr">Contact</a>
+    </footer>
+  </div>
+</body>
+</html>

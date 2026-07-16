@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterviewPlus | Parametres de session</title>
+  <meta name="description" content="Configurez une session InterviewPlus par nombre de questions, theme et timer.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/app.css">
+  <script src="./assets/js/config.js"></script>
+  <script defer src="./assets/js/xlsx.full.min.js"></script>
+  <script type="module" defer src="./assets/js/setup.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <img class="brand-logo" src="./assets/img/interviewplus-logo.svg" alt="InterviewPlus">
+      </a>
+      <nav class="topnav">
+        <a class="nav-link" href="./index.html">Accueil</a>
+        <a class="nav-link is-active" href="./setup.html">Nouvelle session</a>
+        <a class="nav-link" href="./results.html">Sessions</a>
+        <a class="nav-link" href="./profile.html">Profil</a>
+      </nav>
+    </header>
+
+    <main class="page narrow-page">
+      <section class="page-header simple-header">
+        <div>
+          <p class="eyebrow">Parametres</p>
+          <h1>Configurer la session</h1>
+          <p class="page-intro">Choisissez seulement le nombre de questions, le theme et le timer.</p>
+        </div>
+      </section>
+
+      <section class="panel setup-panel">
+        <div class="summary-strip" id="setupSummary"></div>
+
+        <div class="field-stack">
+          <label class="field">
+            <span>Nombre de questions</span>
+            <select id="questionCount">
+              <option value="5">5 questions</option>
+              <option value="10">10 questions</option>
+              <option value="15">15 questions</option>
+              <option value="20">20 questions</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Langue des questions</span>
+            <select id="questionLanguage">
+              <option value="en">Anglais</option>
+              <option value="fr">Francais</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Theme</span>
+            <select id="themeSelect">
+              <option value="">Chargement des themes...</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Timer</span>
+            <select id="timerMinutes">
+              <option value="5">5 minutes</option>
+              <option value="10" selected>10 minutes</option>
+              <option value="15">15 minutes</option>
+              <option value="20">20 minutes</option>
+              <option value="30">30 minutes</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="button-row">
+          <button class="button button-primary" id="startSession" type="button">Lancer la session</button>
+        </div>
+
+        <p class="inline-note" id="setupMessage"></p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>InterviewPlus</span>
+      <span>Preparation M&A premium</span>
+      <a href="mailto:contact@interviewplus.fr">Contact</a>
+    </footer>
+  </div>
+</body>
+</html>

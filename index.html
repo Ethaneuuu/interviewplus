@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterviewPlus | Entrainement M&A</title>
+  <meta name="description" content="Plateforme simple d'entrainement M&A avec base integree, sessions chronometrees et suivi de progression par profil.">
+  <meta property="og:title" content="InterviewPlus | Elite M&A Interview Prep">
+  <meta property="og:description" content="Sessions chronometrees, correction locale gratuite et progression par categorie pour preparer les entretiens M&A.">
+  <meta property="og:type" content="website">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/app.css">
+  <script src="./assets/js/config.js"></script>
+  <script defer src="./assets/js/xlsx.full.min.js"></script>
+  <script type="module" defer src="./assets/js/home.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <img class="brand-logo" src="./assets/img/interviewplus-logo.svg" alt="InterviewPlus">
+      </a>
+      <nav class="topnav">
+        <a class="nav-link is-active" href="./index.html">Accueil</a>
+        <a class="nav-link" href="./setup.html">Nouvelle session</a>
+        <a class="nav-link" href="./results.html">Sessions</a>
+        <a class="nav-link" href="./profile.html">Profil</a>
+        <a class="nav-link" id="authNavLink" href="./auth.html">Connexion</a>
+      </nav>
+    </header>
+
+    <main class="page landing-page">
+      <section class="premium-hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Elite M&A Interview Prep</p>
+          <h1>Train like the candidates who walk into top-tier interviews ready.</h1>
+          <p class="hero-text">
+            InterviewPlus transforme une base M&A unique en sessions chronometrees, corrections detaillees
+            et suivi de progression par categorie. Un entrainement exigeant, structure, sans bruit inutile.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" id="primarySessionLink" href="./setup.html">Commencer une session</a>
+            <span class="inline-note" id="heroAccountNote"></span>
+          </div>
+        </div>
+
+        <aside class="hero-console" aria-label="Apercu d'une session InterviewPlus">
+          <div class="console-topline">
+            <span>Apercu session</span>
+            <strong>M&A Technicals</strong>
+          </div>
+          <div class="console-question">
+            <span>Question 03</span>
+            <p>Walk me through how an accretion / dilution analysis changes after debt financing.</p>
+          </div>
+          <div class="console-bars">
+            <div style="--bar: 88%"><span>Structure</span></div>
+            <div style="--bar: 74%"><span>Technical depth</span></div>
+            <div style="--bar: 61%"><span>Precision</span></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="logo-marquee" aria-label="Environnements vises">
+        <div class="logo-track">
+          <figure class="bank-logo"><img src="./assets/img/logos/goldman-sachs.svg" alt="Goldman Sachs"><figcaption>Goldman Sachs</figcaption></figure>
+          <figure class="bank-logo"><img src="./assets/img/logos/jp-morgan.svg" alt="J.P. Morgan"><figcaption>J.P. Morgan</figcaption></figure>
+          <figure class="bank-logo"><img src="./assets/img/logos/morgan-stanley.svg" alt="Morgan Stanley"><figcaption>Morgan Stanley</figcaption></figure>
+          <figure class="bank-logo"><img src="./assets/img/logos/evercore.svg" alt="Evercore"><figcaption>Evercore</figcaption></figure>
+          <figure class="bank-logo"><img src="./assets/img/logos/lazard.svg" alt="Lazard"><figcaption>Lazard</figcaption></figure>
+          <figure class="bank-logo"><img src="./assets/img/logos/rothschild.svg" alt="Rothschild & Co"><figcaption>Rothschild & Co</figcaption></figure>
+          <figure class="bank-logo"><img src="./assets/img/logos/blackstone.svg" alt="Blackstone"><figcaption>Blackstone</figcaption></figure>
+          <figure class="bank-logo"><img src="./assets/img/logos/kkr.svg" alt="KKR"><figcaption>KKR</figcaption></figure>
+          <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/goldman-sachs.svg" alt=""><figcaption>Goldman Sachs</figcaption></figure>
+          <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/jp-morgan.svg" alt=""><figcaption>J.P. Morgan</figcaption></figure>
+          <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/morgan-stanley.svg" alt=""><figcaption>Morgan Stanley</figcaption></figure>
+          <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/evercore.svg" alt=""><figcaption>Evercore</figcaption></figure>
+          <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/lazard.svg" alt=""><figcaption>Lazard</figcaption></figure>
+          <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/rothschild.svg" alt=""><figcaption>Rothschild & Co</figcaption></figure>
+          <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/blackstone.svg" alt=""><figcaption>Blackstone</figcaption></figure>
+          <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/kkr.svg" alt=""><figcaption>KKR</figcaption></figure>
+        </div>
+      </section>
+
+      <section class="landing-section">
+        <div class="section-kicker">
+          <p class="eyebrow">Themes couverts</p>
+          <h2>Les blocs classiques d'un process M&A exigeant.</h2>
+        </div>
+        <div class="topic-grid">
+          <article class="topic-card"><span>TECH</span><h3>Technical</h3><p>Valuation, DCF, LBO, accounting, EV / equity bridge.</p></article>
+          <article class="topic-card"><span>FIT</span><h3>Behavioral / Fit</h3><p>Motivation, leadership, deal interest, communication.</p></article>
+          <article class="topic-card"><span>DEAL</span><h3>Deal Process</h3><p>Sell-side, buy-side, transaction execution, diligence.</p></article>
+          <article class="topic-card"><span>MKT</span><h3>Markets / Investing</h3><p>Market views, investment judgement, current events.</p></article>
+          <article class="topic-card"><span>IND</span><h3>Industry Specific</h3><p>Sector logic, business models, strategic drivers.</p></article>
+          <article class="topic-card"><span>BT</span><h3>Brain Teaser / Creative</h3><p>Market sizing, logic, creativity under pressure.</p></article>
+        </div>
+      </section>
+
+      <section class="landing-section">
+        <div class="section-kicker">
+          <p class="eyebrow">Fonctionnement</p>
+          <h2>Un entrainement court, net, mesurable.</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card"><strong>01</strong><h3>Choisir la session</h3><p>Nombre de questions, theme cible ou tirage aleatoire, timer global.</p></article>
+          <article class="feature-card"><strong>02</strong><h3>Repondre sous pression</h3><p>Les questions s'enchainent sans correction immediate pour simuler un vrai entretien.</p></article>
+          <article class="feature-card"><strong>03</strong><h3>Recevoir la correction</h3><p>Score par question, reponse attendue, points forts, axes d'amelioration et manques.</p></article>
+          <article class="feature-card"><strong>04</strong><h3>Suivre la progression</h3><p>Le profil montre les categories fortes et les zones a renforcer.</p></article>
+        </div>
+      </section>
+
+      <section class="landing-section roadmap-section">
+        <div class="section-kicker">
+          <p class="eyebrow">Roadmap</p>
+          <h2>Construire une reponse banker-ready, etape par etape.</h2>
+        </div>
+        <div class="roadmap">
+          <article><span>Phase 1</span><h3>Base technique</h3><p>Reprendre les fondamentaux valuation, accounting, deal mechanics.</p></article>
+          <article><span>Phase 2</span><h3>Sessions chronometrees</h3><p>Travailler la vitesse, la clarte et la priorisation sous timer.</p></article>
+          <article><span>Phase 3</span><h3>Corrections ciblees</h3><p>Identifier les ecarts entre votre reponse et le standard attendu.</p></article>
+          <article><span>Phase 4</span><h3>Progression par categorie</h3><p>Concentrer les repetitions sur les themes qui font perdre des points.</p></article>
+        </div>
+      </section>
+
+      <section class="landing-section testimonial-section">
+        <div class="section-kicker">
+          <p class="eyebrow">Retours candidats</p>
+          <h2>Des feedbacks rapides pour rendre chaque repetition utile.</h2>
+        </div>
+        <div class="grid grid-3">
+          <article class="testimonial-card"><p>"Le timer force a repondre comme en entretien. J'ai enfin vu ou mes reponses manquaient de structure."</p><strong>Candidate, M&A internship</strong></article>
+          <article class="testimonial-card"><p>"Les corrections par question m'ont aide a isoler mes faiblesses en DCF et accounting."</p><strong>Master finance student</strong></article>
+          <article class="testimonial-card"><p>"Le format est direct: question, reponse, score, correction. Exactement ce qu'il faut pour repeter."</p><strong>Off-cycle applicant</strong></article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>InterviewPlus</span>
+      <span>Preparation M&A premium</span>
+      <a href="mailto:contact@interviewplus.fr">Contact</a>
+    </footer>
+  </div>
+</body>
+</html>

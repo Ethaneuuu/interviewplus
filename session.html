@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterviewPlus | Session chronometree</title>
+  <meta name="description" content="Repondez a vos questions M&A sous timer avant de recevoir une correction detaillee.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/app.css">
+  <script src="./assets/js/config.js"></script>
+  <script defer src="./assets/js/xlsx.full.min.js"></script>
+  <script type="module" defer src="./assets/js/session.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <img class="brand-logo" src="./assets/img/interviewplus-logo.svg" alt="InterviewPlus">
+      </a>
+      <nav class="topnav">
+        <a class="nav-link" href="./index.html">Accueil</a>
+        <a class="nav-link" href="./setup.html">Nouvelle session</a>
+        <a class="nav-link" href="./results.html">Sessions</a>
+        <a class="nav-link" href="./profile.html">Profil</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="session-banner">
+        <div>
+          <p class="eyebrow">Session</p>
+          <h1 id="sessionTitle">Session en cours</h1>
+          <p class="page-intro" id="sessionSubtitle">Repondez aux questions avant la fin du compte a rebours.</p>
+        </div>
+        <div class="timer-card">
+          <span>Temps restant</span>
+          <strong id="timerDisplay">--:--</strong>
+        </div>
+      </section>
+
+      <section class="grid grid-session">
+        <article class="panel">
+          <div class="session-topbar">
+            <span class="pill" id="progressChip">Question 1</span>
+            <span class="pill" id="themePill">Theme</span>
+          </div>
+
+          <article class="question-block">
+            <p class="eyebrow" id="questionModeLabel">Question</p>
+            <h2 id="questionText">Chargement de la session...</h2>
+            <p class="inline-note" id="questionMeta"></p>
+          </article>
+
+          <div id="answerZone">
+            <label class="field">
+              <span>Votre reponse</span>
+              <textarea id="candidateAnswer" rows="12" placeholder="Redigez votre reponse ici..."></textarea>
+            </label>
+            <div class="button-row">
+              <button class="button button-ghost" id="prevQuestion" type="button">Question precedente</button>
+              <button class="button button-primary" id="nextQuestion" type="button">Question suivante</button>
+              <button class="button button-secondary" id="finishNow" type="button">Terminer maintenant</button>
+            </div>
+          </div>
+        </article>
+
+        <aside class="panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Navigation</p>
+              <h2 id="sideTitle">Questions</h2>
+            </div>
+            <span class="pill" id="globalScorePill">Score global --</span>
+          </div>
+          <div class="question-nav" id="questionNav"></div>
+          <p class="inline-note" id="sideHint"></p>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>InterviewPlus</span>
+      <span>Preparation M&A premium</span>
+      <a href="mailto:contact@interviewplus.fr">Contact</a>
+    </footer>
+  </div>
+</body>
+</html>
