@@ -1,9 +1,6 @@
-import { createRequire } from "node:module";
 import { deriveExpectedKeywords } from "../../../assets/js/keywords.js";
 import { KEYWORD_OVERRIDES } from "../../../assets/js/keyword-overrides.js";
-
-const require = createRequire(import.meta.url);
-const XLSX = require("../../../assets/js/xlsx.full.min.js");
+import XLSX from "../../../assets/js/xlsx.full.min.js";
 
 export function createQuestionBankLoader({ fetchImpl = fetch, env = process.env, workbookBytes } = {}) {
   let questionBankPromise;

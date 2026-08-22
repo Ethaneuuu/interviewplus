@@ -1,7 +1,12 @@
 import fs from "node:fs/promises";
 import { execFile } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { deepEqual, equal, ok, rejects } from "node:assert/strict";
 import { promisify } from "node:util";
+import { pathToFileURL } from "node:url";
+
+const run = promisify(execFile);
 
 const schema = await fs.readFile("supabase/schema.sql", "utf8");
 for (const column of ["session_type", "difficulty", "template_id", "case_seed", "case_json", "score_json", "correction_mode", "correction_provider", "correction_model"]) {
@@ -78,16 +83,34 @@ await rejects(loader(), /PRIVATE_QUESTION_FILE_UNAVAILABLE:404/);
 equal(storageUrl, "https://project.supabase.co/storage/v1/object/interviewplus-private/Questions_InterviewPlus_Bilingual.xlsx");
 
 await fs.rm("dist", { recursive: true, force: true });
-await promisify(execFile)(process.execPath, ["scripts/build-static.mjs"]);
+await run(process.execPath, ["scripts/build-static.mjs"]);
 const manifest = await listFiles("dist");
 const expected = [
   "auth.html", "case-session.html", "case-setup.html", "index.html", "profile.html", "results.html", "session.html", "setup.html",
   "assets/css/app.css", "assets/img/interviewplus-logo.svg", "assets/js/backend.js", "assets/js/config.js", "assets/js/store.js", "assets/js/xlsx.full.min.js",
 ];
 expected.forEach((file) => ok(manifest.includes(file), `Missing public file ${file}`));
-deepEqual(manifest.filter((file) => file.startsWith("netlify/") || file.startsWith("supabase/") || file.startsWith("tests/") || file.endsWith(".xlsx")), []);
+deepEqual(manifest.filter((file) => file.startsWith("netlify/") || file.startsWith("supabase/") || file.startsWith("tests/") || file.startsWith("docs/") || file.endsWith(".xlsx")), []);
 ok(!manifest.includes("assets/js/config.example.js"));
 ok(!manifest.includes("assets/js/keyword-overrides.js"));
+for (const file of manifest) {
+  const text = await fs.readFile(`dist/${file}`, "utf8");
+  ["OPENROUTER_API_KEY", "SUPABASE_SERVICE_ROLE_KEY", /sk-or-[A-Za-z0-9]+/].forEach((secret) => ok(!text.match(secret), `${file} exposes a server secret`));
+}
+
+await run("netlify", ["build", "--offline"]);
+const artifactDir = await fs.mkdtemp(join(tmpdir(), "interviewplus-correct-"));
+try {
+  await run("unzip", ["-oq", ".netlify/functions/correct.zip", "-d", artifactDir]);
+  const artifact = await import(`${pathToFileURL(join(artifactDir, "correct.js")).href}?${Date.now()}`);
+  const handler = artifact.handler || artifact.default?.handler;
+  equal(typeof handler, "function");
+  const response = await handler({ httpMethod: "POST", body: "{}" });
+  equal(response.statusCode, 400);
+  deepEqual(JSON.parse(response.body), { error: "INVALID_CORRECTION_TYPE" });
+} finally {
+  await fs.rm(artifactDir, { recursive: true, force: true });
+}
 
 console.log(JSON.stringify({ ok: true, publicFiles: manifest.length }));
 
