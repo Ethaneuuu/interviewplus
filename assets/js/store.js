@@ -9,6 +9,7 @@ import {
   remoteSignUp,
   upsertRemoteSession,
 } from "./backend.js";
+import { extractKeywords, normalizeText, unique } from "./keywords.js";
 
 const STORAGE_KEY = "interviewplus-state-v4";
 const SOURCE_LABEL = "Questions_InterviewPlus_Bilingual.xlsx";
@@ -26,24 +27,6 @@ const fallbackDataset = [
     document: "Demo",
   },
 ];
-
-const stopWords = new Set([
-  "a","about","above","after","again","against","all","also","am","an","and","any","are","as","at","be","because",
-  "been","before","being","below","between","both","but","by","can","could","did","do","does","doing","down","during",
-  "each","few","for","from","further","had","has","have","having","he","her","here","hers","herself","him","himself",
-  "his","how","i","if","in","into","is","it","its","itself","just","me","more","most","my","myself","no","nor","not",
-  "of","off","on","once","only","or","other","our","ours","ourselves","out","over","own","same","she","should","so",
-  "some","such","than","that","the","their","theirs","them","themselves","then","there","these","they","this","those",
-  "through","to","too","under","until","up","very","was","we","were","what","when","where","which","while","who","why",
-  "will","with","you","your","yours","yourself","yourselves","afin","ainsi","alors","au","aucun","aussi","autre","avant",
-  "avec","avoir","bon","car","ce","cela","ces","ceux","chaque","ci","comme","comment","dans","des","du","dedans","dehors",
-  "depuis","devrait","doit","donc","dos","droite","debut","elle","elles","en","encore","essai","est","et","eu","fait",
-  "faites","fois","font","force","haut","hors","ici","il","ils","je","juste","la","le","les","leur","ma","maintenant",
-  "mais","mes","mine","moins","mon","mot","meme","ni","nommes","notre","nous","nouveaux","ou","par","parce","parole",
-  "pas","personnes","peut","peu","piece","plupart","pour","pourquoi","quand","que","quel","quelle","quelles","quels",
-  "qui","sa","sans","ses","seulement","si","sien","son","sont","sous","soyez","sujet","sur","ta","tandis","tellement",
-  "tels","tes","ton","tous","tout","trop","tres","tu","valeur","voie","voient","vont","votre","vous","vu",
-]);
 
 const financeConcepts = [
   {
@@ -808,15 +791,15 @@ function computeSemanticScore({
 }
 
 function detectFinanceConcepts(text) {
-  const normalized = normalize(text);
+  const normalized = normalizeText(text);
   return new Set(financeConcepts
-    .filter((concept) => concept.aliases.some((alias) => normalized.includes(normalize(alias))))
+    .filter((concept) => concept.aliases.some((alias) => normalized.includes(normalizeText(alias))))
     .map((concept) => concept.id));
 }
 
 function assessFormulaMatch(questionText, candidateAnswer, expectedConcepts, candidateConcepts) {
-  const normalizedQuestion = normalize(questionText);
-  const candidate = normalize(candidateAnswer);
+  const normalizedQuestion = normalizeText(questionText);
+  const candidate = normalizeText(candidateAnswer);
   const asksForEquityValueCalculation = (
     normalizedQuestion.includes("calculate equity value") ||
     normalizedQuestion.includes("calculated equity value") ||
@@ -871,7 +854,7 @@ function assessFormulaMatch(questionText, candidateAnswer, expectedConcepts, can
 }
 
 function detectFinancialContradictions(answer) {
-  const normalized = normalize(answer);
+  const normalized = normalizeText(answer);
   const contradictions = [];
   if (/\b(moins|minus|subtract|soustrait|retire)\b.{0,24}\b(cash|tresorerie|cash equivalents)\b/.test(normalized)) {
     contradictions.push("Le cash ne doit pas etre traite comme de la dette dans le bridge EV -> Equity Value.");
@@ -921,7 +904,7 @@ function getConceptLabel(conceptId) {
 }
 
 function isLowEffortAnswer(text) {
-  const normalized = normalize(text);
+  const normalized = normalizeText(text);
   if (!normalized) return true;
 
   const words = normalized.split(/\s+/).filter(Boolean);
@@ -1115,7 +1098,7 @@ function cleanCellValue(value) {
 }
 
 function isRefreshRequired(value) {
-  return ["yes", "oui", "true", "1"].includes(normalize(value));
+  return ["yes", "oui", "true", "1"].includes(normalizeText(value));
 }
 
 function buildExpectedReference(question) {
@@ -1147,15 +1130,6 @@ function loadState() {
 
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-function extractKeywords(text) {
-  return unique(
-    normalize(text)
-      .split(/\s+/)
-      .map((token) => token.trim())
-      .filter((token) => token.length > 2 && !stopWords.has(token))
-  );
 }
 
 function extractKeyPoints(text) {
@@ -1200,22 +1174,8 @@ function scoreSpecificity(text) {
   return clamp(score, 0, 1);
 }
 
-function normalize(text) {
-  return String(text || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function slugify(text) {
-  return normalize(text).replace(/\s+/g, "");
-}
-
-function unique(items) {
-  return Array.from(new Set(items.filter(Boolean)));
+  return normalizeText(text).replace(/\s+/g, "");
 }
 
 function clamp(value, min, max) {
