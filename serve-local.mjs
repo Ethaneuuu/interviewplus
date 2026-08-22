@@ -89,7 +89,9 @@ async function handleApiRoute(request, response, pathname) {
       json(response, 200, result);
     } catch (error) {
       const code = String(error?.message || "CORRECTION_UNAVAILABLE");
-      json(response, code === "OPENROUTER_UNAVAILABLE" ? 502 : correctionValidationError(code) ? 400 : 500, { error: code });
+      if (code === "OPENROUTER_UNAVAILABLE") json(response, 502, { error: code });
+      else if (correctionValidationError(code)) json(response, 400, { error: code });
+      else json(response, 500, { error: "INTERNAL_ERROR" });
     }
     return;
   }
