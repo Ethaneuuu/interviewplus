@@ -98,21 +98,33 @@ for (const file of manifest) {
   ["OPENROUTER_API_KEY", "SUPABASE_SERVICE_ROLE_KEY", /sk-or-[A-Za-z0-9]+/].forEach((secret) => ok(!text.match(secret), `${file} exposes a server secret`));
 }
 
-await run("netlify", ["build", "--offline"]);
-const artifactDir = await fs.mkdtemp(join(tmpdir(), "interviewplus-correct-"));
-try {
-  await run("unzip", ["-oq", ".netlify/functions/correct.zip", "-d", artifactDir]);
-  const artifact = await import(`${pathToFileURL(join(artifactDir, "correct.js")).href}?${Date.now()}`);
-  const handler = artifact.handler || artifact.default?.handler;
-  equal(typeof handler, "function");
-  const response = await handler({ httpMethod: "POST", body: "{}" });
-  equal(response.statusCode, 400);
-  deepEqual(JSON.parse(response.body), { error: "INVALID_CORRECTION_TYPE" });
-} finally {
-  await fs.rm(artifactDir, { recursive: true, force: true });
-}
+const netlifyBundle = await verifyNetlifyBundle();
 
-console.log(JSON.stringify({ ok: true, publicFiles: manifest.length }));
+console.log(JSON.stringify({ ok: true, publicFiles: manifest.length, netlifyBundle }));
+
+async function verifyNetlifyBundle() {
+  try {
+    await run("netlify", ["--version"]);
+  } catch (error) {
+    if (error?.code === "ENOENT") return "skipped-cli-missing";
+    throw error;
+  }
+
+  await run("netlify", ["build", "--offline"]);
+  const artifactDir = await fs.mkdtemp(join(tmpdir(), "interviewplus-correct-"));
+  try {
+    await run("unzip", ["-oq", ".netlify/functions/correct.zip", "-d", artifactDir]);
+    const artifact = await import(`${pathToFileURL(join(artifactDir, "correct.js")).href}?${Date.now()}`);
+    const handler = artifact.handler || artifact.default?.handler;
+    equal(typeof handler, "function");
+    const response = await handler({ httpMethod: "POST", body: "{}" });
+    equal(response.statusCode, 400);
+    deepEqual(JSON.parse(response.body), { error: "INVALID_CORRECTION_TYPE" });
+    return "verified";
+  } finally {
+    await fs.rm(artifactDir, { recursive: true, force: true });
+  }
+}
 
 async function listFiles(directory, prefix = "") {
   const entries = await fs.readdir(directory, { withFileTypes: true });
