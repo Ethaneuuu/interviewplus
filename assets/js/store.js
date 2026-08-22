@@ -462,6 +462,11 @@ export async function recorrectSession(sessionId) {
       if (state.activeSession?.id === updated.id) {
         state.activeSession = structuredClone(updated);
       }
+      try {
+        persist();
+      } catch {
+        // The remote upsert remains committed if local cache persistence fails.
+      }
       return buildSessionView(updated);
     }
 

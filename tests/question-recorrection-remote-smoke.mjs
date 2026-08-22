@@ -78,4 +78,11 @@ const recorrected = await store.recorrectSession(completed.id);
 assert(recorrected.questions.every((question) => question.score === 91), "Successful remote upsert was treated as a failed recorrection");
 assert((await store.getResultsOverview()).sessions[0].questions.every((question) => question.score === 91), "Remote committed correction was not exposed after refresh failure");
 
+const reloadUrl = pathToFileURL(path.join(projectRoot, "assets/js/store.js"));
+reloadUrl.searchParams.set("question-recorrection-remote-reload", String(Date.now()));
+const reloadedStore = await import(reloadUrl.href);
+await reloadedStore.initializeApp();
+const reloaded = await reloadedStore.getSessionDetails(completed.id);
+assert(reloaded.questions.every((question) => question.score === 91), "Reload exposed the pre-commit active session instead of the remote correction");
+
 console.log(JSON.stringify({ ok: true, correctionCalls, remoteScore: recorrected.questions[0].score }));
