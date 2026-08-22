@@ -95,12 +95,13 @@ function renderHistory(sessions, selectedSession) {
   resultsList.innerHTML = "";
   sessions.forEach((session) => {
     if (session.sessionType === "case") {
+      const grade = session.caseData?.grade;
       const item = document.createElement("article");
       item.className = session.id === selectedSession?.id ? "history-item is-selected" : "history-item";
       item.innerHTML = `
         <div>
-          <strong>${escapeHtml(session.caseData?.statement?.title || "Cas pratique")} | ${session.globalScore ?? "--"}%</strong>
-          <p class="chart-meta">${escapeHtml(session.config.difficulty || "")} | ${session.config.timerMinutes} min</p>
+          <strong>${escapeHtml(caseThemeLabel(session.config.theme))} | ${session.globalScore ?? "--"}% | ${grade?.passed ? t("Réussi", "Passed") : t("À retravailler", "To revisit")}</strong>
+          <p class="chart-meta">${escapeHtml(caseDifficultyLabel(session.config.difficulty))} | ${session.config.timerMinutes} min</p>
           <p class="chart-meta">${t("Le", "On")} ${formatDate(session.completedAt || session.startedAt)}</p>
         </div>
         <a class="button button-ghost" href="./results.html?session=${encodeURIComponent(session.id)}">${t("Voir le détail", "View details")}</a>
@@ -187,8 +188,11 @@ function renderSessionDetail(session) {
 function renderCaseDetail(session) {
   const grade = session.caseData?.grade || {};
   const breakdown = grade.breakdown || {};
+  const statement = session.caseData?.statement || {};
+  const fields = new Map((statement.answerFields || []).map((field) => [field.id, field]));
+  const answers = session.caseData?.answers || {};
   detailPanel.classList.remove("hidden");
-  detailTitle.textContent = `${session.caseData?.statement?.title || t("Cas pratique", "Practical case")} | ${formatDate(session.completedAt || session.startedAt)}`;
+  detailTitle.textContent = `${statement.title || t("Cas pratique", "Practical case")} | ${formatDate(session.completedAt || session.startedAt)}`;
   detailScore.textContent = `${t("Score global", "Overall score")} ${session.globalScore ?? "--"}%`;
   recorrectButton.classList.add("hidden");
   recorrectButton.disabled = false;
@@ -204,9 +208,45 @@ function renderCaseDetail(session) {
     <div class="feedback-stack result-feedback-stack">
       <article class="feedback-card"><h3>${t("Résultats", "Results")}</h3><p>${breakdown.results ?? "--"}%</p></article>
       <article class="feedback-card"><h3>${t("Méthode", "Method")}</h3><p>${breakdown.method ?? "--"}%</p></article>
-      ${session.caseData?.statement?.recommendation ? `<article class="feedback-card"><h3>${t("Justification", "Justification")}</h3><p>${breakdown.justification ?? "--"}%</p></article>` : ""}
+      ${statement.recommendation ? `<article class="feedback-card"><h3>${t("Justification", "Justification")}</h3><p>${breakdown.justification ?? "--"}%</p></article>` : ""}
     </div>
+    <section>
+      <h3>${t("Réponses détaillées", "Detailed answers")}</h3>
+      <div class="table-scroll"><table class="case-table">
+        <thead><tr><th>${t("Sortie", "Output")}</th><th>${t("Votre réponse", "Your answer")}</th><th>${t("Valeur attendue", "Expected value")}</th><th>${t("Points", "Points")}</th><th>${t("Retour", "Feedback")}</th></tr></thead>
+        <tbody>${(grade.items || []).map((item) => renderCaseItem(item, fields.get(item.id), answers[item.id])).join("")}</tbody>
+      </table></div>
+    </section>
+    ${grade.feedback ? `<section class="text-card"><h3>${t("Retour sur la recommandation", "Recommendation feedback")}</h3><p>${escapeHtml(grade.feedback)}</p></section>` : ""}
+    <a class="button button-primary" href="./case-setup.html?theme=${encodeURIComponent(statement.theme || "")}&difficulty=${encodeURIComponent(statement.difficulty || "")}">${t("Refaire ce cas", "Start another case")}</a>
   `;
+}
+
+function renderCaseItem(item, field, answer) {
+  const points = item.credit === 1 ? "100%" : item.credit === .5 ? "50%" : "0%";
+  return `<tr>
+    <th>${escapeHtml(field?.label || item.id)}</th>
+    <td>${escapeHtml(formatCaseValue(answer, field))}</td>
+    <td>${escapeHtml(formatCaseValue(item.score, field))}</td>
+    <td>${points}</td>
+    <td>${escapeHtml(caseFeedback(item.credit))}</td>
+  </tr>`;
+}
+
+function formatCaseValue(value, field) {
+  if (value === null || value === undefined || String(value).trim() === "") return "--";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "--";
+  if (field?.format === "percent") return `${(number * 100).toFixed(2)}%`;
+  if (field?.format === "multiple") return `${number.toFixed(2)}x`;
+  if (field?.format === "per-share") return `$${number.toFixed(2)}`;
+  return number.toLocaleString(document.documentElement.lang === "en" ? "en-GB" : "fr-FR", { maximumFractionDigits: 2 });
+}
+
+function caseFeedback(credit) {
+  if (credit === 1) return t("Dans la tolérance", "Within tolerance");
+  if (credit === .5) return t("Dans la tolérance élargie", "Within extended tolerance");
+  return t("Hors tolérance", "Outside tolerance");
 }
 
 async function getSelectedSession(overview) {
@@ -251,6 +291,14 @@ function languageLabel(language) {
 
 function displayTheme(theme) {
   return theme === "Aleatoire" ? t("Aléatoire", "Random") : theme;
+}
+
+function caseThemeLabel(theme) {
+  return theme === "merger-model" ? t("Modèle de fusion", "Merger model") : String(theme || t("Cas pratique", "Practical case")).toUpperCase();
+}
+
+function caseDifficultyLabel(difficulty) {
+  return ({ easy: t("Débutant", "Easy"), intermediate: t("Intermédiaire", "Intermediate"), advanced: t("Avancé", "Advanced") })[difficulty] || String(difficulty || "");
 }
 
 function isRefreshRequired(value) {

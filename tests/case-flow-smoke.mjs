@@ -1,9 +1,17 @@
 import { equal, ok, rejects } from "node:assert/strict";
+import fs from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import { gradeCase } from "../netlify/functions/lib/case-grader.mjs";
 
 const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+for (const page of ["index.html", "auth.html", "setup.html", "session.html", "results.html", "profile.html", "case-setup.html", "case-session.html"]) {
+  const html = await fs.readFile(path.join(projectRoot, page), "utf8");
+  ok(html.includes("case-setup.html"), `${page} misses Cas pratiques navigation`);
+}
+const resultsSource = await fs.readFile(path.join(projectRoot, "assets/js/results.js"), "utf8");
+ok(resultsSource.includes("renderCaseDetail"));
+ok(resultsSource.includes("Réussi"));
 const storage = new Map();
 let correctionFails = false;
 

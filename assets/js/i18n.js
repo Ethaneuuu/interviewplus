@@ -148,6 +148,17 @@ const pairs = [
   ["Résultats", "Results"],
   ["Méthode", "Method"],
   ["Justification", "Justification"],
+  ["Réponses détaillées", "Detailed answers"],
+  ["Sortie", "Output"],
+  ["Valeur attendue", "Expected value"],
+  ["Points", "Points"],
+  ["Retour", "Feedback"],
+  ["Dans la tolérance", "Within tolerance"],
+  ["Dans la tolérance élargie", "Within extended tolerance"],
+  ["Hors tolérance", "Outside tolerance"],
+  ["Retour sur la recommandation", "Recommendation feedback"],
+  ["Refaire ce cas", "Start another case"],
+  ["Modèle de fusion", "Merger model"],
 ];
 
 const lookup = new Map();

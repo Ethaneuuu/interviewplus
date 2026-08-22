@@ -22,7 +22,7 @@ const statement = generateCaseStatement({ theme: "dcf", difficulty: "easy", seed
 const session = {
   id: "case-1", userId: "guest-1", sessionType: "case", status: "running", startedAt: "2026-08-22T10:00:00.000Z", endsAt: "2026-08-22T11:00:00.000Z", completedAt: null, globalScore: null,
   config: { theme: "dcf", difficulty: "easy", timerMinutes: 60, questionCount: 0 }, questions: [],
-  caseData: { templateId: statement.templateId, difficulty: "easy", seed: 7, statement, answers: {}, grade: null },
+  caseData: { templateId: statement.templateId, difficulty: "easy", seed: 7, statement, answers: { [statement.answerFields[0].id]: "" }, grade: null },
 };
 const state = { localUsers: [], currentLocalUserId: null, guestUser: { id: "guest-1", name: "Guest", email: "guest", createdAt: "2026-08-22T00:00:00.000Z", isGuest: true }, sessionConfig: {}, caseConfig: {}, activeSession: session, localSessions: [] };
 const storage = new Map([["interviewplus-state-v4", JSON.stringify(state)]]);
@@ -62,6 +62,13 @@ await import(resultsUrl.href);
 
 ok(elements.detailCorrection.innerHTML.includes("0%"));
 ok(elements.detailCorrection.innerHTML.includes("Résultats"));
+ok(elements.detailCorrection.innerHTML.includes("Réponses détaillées"));
+ok(elements.detailCorrection.innerHTML.includes("Votre réponse"));
+ok(elements.detailCorrection.innerHTML.includes("Valeur attendue"));
+ok(elements.detailCorrection.innerHTML.includes("Points"));
+ok(elements.detailCorrection.innerHTML.includes("Retour"));
+ok(elements.detailCorrection.innerHTML.includes("./case-setup.html?theme=dcf&difficulty=easy"));
+ok(!elements.detailCorrection.innerHTML.includes("<td>0</td>"));
 equal(elements.detailQuestionNav.children.length, 0);
 equal(elements.recorrectSession.dataset.sessionId, "");
 console.log(JSON.stringify({ ok: true, dom: "case-results" }));
