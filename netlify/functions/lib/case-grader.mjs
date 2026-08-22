@@ -36,17 +36,19 @@ function dcf(x) {
 
 function dcfWacc(x) {
   if (Number.isFinite(x.wacc)) return x.wacc;
-  const debtWeight = x.target_debt_pct; const peerBeta = Number.isFinite(x.comparable_beta) ? (x.beta + x.comparable_beta) / 2 : x.beta;
-  const unleveredBeta = peerBeta / (1 + (1 - x.tax_rate) * debtWeight / (1 - debtWeight));
+  const debtWeight = x.target_debt_pct; const peerBeta = Number.isFinite(x.comparable_beta) ? x.comparable_beta : x.beta;
+  const peerDebtWeight = x.comparable_debt_pct ?? debtWeight;
+  const unleveredBeta = peerBeta / (1 + (1 - x.tax_rate) * peerDebtWeight / (1 - peerDebtWeight));
   const releveredBeta = unleveredBeta * (1 + (1 - x.tax_rate) * debtWeight / (1 - debtWeight));
-  return x.risk_free_rate + releveredBeta * x.equity_risk_premium * (1 - debtWeight) + x.cost_of_debt * (1 - x.tax_rate) * debtWeight;
+  return (x.risk_free_rate + releveredBeta * x.equity_risk_premium) * (1 - debtWeight) + x.cost_of_debt * (1 - x.tax_rate) * debtWeight;
 }
 
 function dcfProjection(x, wacc) {
   const advanced = Number.isFinite(x.segment_a_revenue); const growth = advanced ? x.growth + (1 - x.base_case_probability) * x.upside_growth : x.growth;
-  let revenue = advanced ? x.segment_a_revenue + x.segment_b_revenue : x.revenue; let previousNwc = revenue * x.nwc_pct; let pv = 0; let finalUfcf = 0; let finalFactor = 0; const output = {};
+  let revenue = x.revenue; let segmentA = x.segment_a_revenue; let segmentB = x.segment_b_revenue; let previousNwc = revenue * x.nwc_pct; let pv = 0; let finalUfcf = 0; let finalFactor = 0; const output = {};
   for (let year = 1; year <= 5; year += 1) {
-    revenue *= 1 + growth; const ebitda = revenue * x.ebitda_margin; const da = revenue * x.da_pct; const capex = revenue * x.capex_pct; const nwc = revenue * x.nwc_pct; const ufcf = (ebitda - da) * (1 - x.tax_rate) + da - capex - (nwc - previousNwc);
+    if (advanced) { segmentA *= 1 + x.segment_a_growth + (1 - x.base_case_probability) * x.upside_growth; segmentB *= 1 + x.segment_b_growth + (1 - x.base_case_probability) * x.upside_growth; revenue = segmentA + segmentB; } else revenue *= 1 + growth;
+    const ebitda = advanced ? segmentA * x.segment_a_margin + segmentB * x.segment_b_margin : revenue * x.ebitda_margin; const da = revenue * x.da_pct; const capex = revenue * x.capex_pct; const nwc = revenue * x.nwc_pct; const ufcf = (ebitda - da) * (1 - x.tax_rate) + da - capex - (nwc - previousNwc);
     const period = advanced ? x.stub_year_fraction + year - 1 + (x.mid_year_convention ? .5 : 0) : year; const factor = 1 / (1 + wacc) ** period;
     output[`ufcf_y${year}`] = round(ufcf); output[`ebitda_y${year}`] = round(ebitda); output[`discount_factor_y${year}`] = round(factor, 6); if (year === 1) { output.capex_y1 = round(capex); output.nwc_y1 = round(nwc); } pv += ufcf * factor; previousNwc = nwc; finalUfcf = ufcf; finalFactor = factor;
   }
@@ -54,17 +56,17 @@ function dcfProjection(x, wacc) {
 }
 
 function lbo(x) {
-  const entryEv = x.ebitda * x.entry_multiple; const entryEquity = entryEv - x.existing_debt + x.cash; const seniorStart = x.senior_debt ?? x.debt; const juniorStart = x.junior_debt ?? 0; const minCash = x.min_cash || 0; const earnout = x.earnout || 0; const rollover = x.rollover || 0; const uses = entryEquity + x.existing_debt + x.fees + earnout + minCash; const sponsorEquity = uses - seniorStart - juniorStart - rollover;
-  let senior = seniorStart; let junior = juniorStart; let revolver = 0; let cash = minCash; let nol = x.nol || 0; let ebitda = x.ebitda; const output = { entry_ev: round(entryEv), entry_equity: round(entryEquity), uses_total: round(uses), sources_total: round(senior + junior + rollover + sponsorEquity), sponsor_equity: round(sponsorEquity) };
+  const entryEv = x.ebitda * x.entry_multiple; const entryEquity = entryEv - x.existing_debt + x.cash; const seniorStart = x.senior_debt ?? x.debt; const juniorStart = x.junior_debt ?? 0; const minCash = x.min_cash || 0; const earnout = x.earnout || 0; const rollover = x.rollover || 0; const uses = entryEquity + x.existing_debt + x.fees + earnout + minCash; const sponsorEquity = uses - seniorStart - juniorStart - rollover - x.cash;
+  let senior = seniorStart; let junior = juniorStart; let revolver = 0; let cash = x.cash; let nol = x.nol || 0; let ebitda = x.ebitda; let revenue = x.revenue; let previousNwc = revenue ? revenue * x.nwc_pct : 0; const output = { entry_ev: round(entryEv), entry_equity: round(entryEquity), uses_total: round(uses), sources_total: round(senior + junior + rollover + sponsorEquity + x.cash), sponsor_equity: round(sponsorEquity) };
   for (let year = 1; year <= 5; year += 1) {
-    const advanced = Number.isFinite(x.revenue_growth); const growth = advanced ? (1 + x.revenue_growth) * (1 + x.margin_expansion) - 1 : x.ebitda_growth; ebitda *= 1 + growth;
-    const cashInterest = senior * .06 + junior * .10 + revolver * .08; const pikInterest = junior * (x.pik_rate || 0); junior += pikInterest; const depreciation = (x.ppa_step_up || 0) / 5; const taxableIncome = Math.max(0, ebitda - depreciation - cashInterest); const nolUsed = Math.min(nol, taxableIncome); nol -= nolUsed; const taxes = (taxableIncome - nolUsed) * .25; const fcf = ebitda * x.fcf_margin - cashInterest - taxes;
+    const advanced = Number.isFinite(x.revenue_growth); if (advanced) { revenue *= 1 + x.revenue_growth; ebitda = revenue * (x.ebitda_margin + x.margin_expansion * year); } else ebitda *= 1 + x.ebitda_growth;
+    const cashInterest = senior * .06 + junior * .10 + revolver * .08; const pikInterest = junior * (x.pik_rate || 0); junior += pikInterest; const depreciation = (x.ppa_step_up || 0) / 5; const taxableIncome = Math.max(0, ebitda - depreciation - cashInterest); const nolUsed = Math.min(nol, taxableIncome); nol -= nolUsed; const taxes = (taxableIncome - nolUsed) * .25; const capex = advanced ? revenue * x.capex_pct : 0; const nwc = advanced ? revenue * x.nwc_pct : previousNwc; const fcf = advanced ? ebitda - capex - (nwc - previousNwc) - cashInterest - taxes : ebitda * x.fcf_margin - cashInterest - taxes; previousNwc = nwc;
     cash += fcf; const requiredDraw = Math.max(0, minCash - cash); const draw = Math.min(x.revolver_limit ?? 0, requiredDraw); revolver += draw; cash += draw;
-    const sweep = Math.max(0, cash - minCash) * (x.cash_sweep ?? 1); const callPremium = x.call_premium || 0; const juniorPaydown = Math.min(junior, sweep / (1 + callPremium)); junior -= juniorPaydown; cash -= juniorPaydown * (1 + callPremium); const seniorPaydown = Math.min(senior, Math.max(0, cash - minCash)); senior -= seniorPaydown; cash -= seniorPaydown;
-    output[`fcf_y${year}`] = round(fcf); output[`debt_y${year}`] = round(senior + junior + revolver); if (year === 1) Object.assign(output, { debt_paydown_y1: round(juniorPaydown + seniorPaydown), interest_y1: round(cashInterest), pik_interest_y1: round(pikInterest), revolver_draw: round(draw) });
+    let sweep = Math.max(0, cash - minCash) * (x.cash_sweep ?? 1); const revolverPaydown = Math.min(revolver, sweep); revolver -= revolverPaydown; cash -= revolverPaydown; sweep = Math.max(0, cash - minCash) * (x.cash_sweep ?? 1); const callPremium = x.call_premium || 0; const juniorPaydown = Math.min(junior, sweep / (1 + callPremium)); junior -= juniorPaydown; cash -= juniorPaydown * (1 + callPremium); const seniorPaydown = Math.min(senior, Math.max(0, cash - minCash)); senior -= seniorPaydown; cash -= seniorPaydown;
+    output[`fcf_y${year}`] = round(fcf); output[`debt_y${year}`] = round(senior + junior + revolver); output[`revolver_y${year}`] = round(revolver); if (year === 1) Object.assign(output, { debt_paydown_y1: round(revolverPaydown + juniorPaydown + seniorPaydown), interest_y1: round(cashInterest), pik_interest_y1: round(pikInterest), revolver_draw: round(draw) });
   }
-  const debt = senior + junior + revolver; const exitEv = ebitda * x.exit_multiple; const exitEquity = exitEv - debt + cash; const managementProceeds = exitEquity * (x.management_pool || 0); const sponsorProceeds = exitEquity - managementProceeds; const mom = sponsorProceeds / sponsorEquity;
-  return { ...output, exit_ev: round(exitEv), exit_equity: round(exitEquity), mom: round(mom, 4), irr: round(mom ** .2 - 1, 6), sensitivity_low: round((ebitda * (x.exit_multiple - .5) - debt + cash - managementProceeds) / sponsorEquity, 4), sensitivity_high: round((ebitda * (x.exit_multiple + .5) - debt + cash - managementProceeds) / sponsorEquity, 4), management_proceeds: round(managementProceeds) };
+  const debt = senior + junior + revolver; const exitEv = ebitda * x.exit_multiple; const exitEquity = exitEv - debt + cash; const waterfall = (equity) => Math.max(0, equity - sponsorEquity * (x.management_hurdle || 0)) * (x.management_pool || 0); const managementProceeds = waterfall(exitEquity); const sponsorProceeds = exitEquity - managementProceeds; const mom = sponsorProceeds / sponsorEquity; const lowEquity = exitEv - x.ebitda * .5 - debt + cash;
+  return { ...output, exit_ev: round(exitEv), exit_equity: round(exitEquity), exit_debt: round(debt), exit_cash: round(cash), mom: round(mom, 4), irr: round(mom ** .2 - 1, 6), sensitivity_low: round((lowEquity - waterfall(lowEquity)) / sponsorEquity, 4), sensitivity_high: round(((exitEv + x.ebitda * .5 - debt + cash) - waterfall(exitEv + x.ebitda * .5 - debt + cash)) / sponsorEquity, 4), management_proceeds: round(managementProceeds) };
 }
 
 function merger(x) {

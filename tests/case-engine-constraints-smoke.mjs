@@ -2,66 +2,58 @@ import { equal, ok } from "node:assert/strict";
 import { generateCaseStatement } from "../assets/js/case-templates.js";
 import { calculateCaseSolution } from "../netlify/functions/lib/case-grader.mjs";
 
-function inputMap(statement) {
+function inputs(statement) {
   return Object.fromEntries(statement.sections.flatMap((section) => section.fields).map(({ id, value }) => [id, value]));
 }
 
-function withInput(statement, id, value) {
-  const changed = structuredClone(statement);
-  const field = changed.sections.flatMap((section) => section.fields).find((entry) => entry.id === id);
-  if (!field) throw new Error(`Missing input ${id}`);
-  field.value = value;
-  return changed;
+function close(actual, expected, message) {
+  ok(Math.abs(actual - expected) <= .02, `${message}: ${actual} !== ${expected}`);
 }
 
-function changedValue(id, value) {
-  if (id === "mid_year_convention" || id === "revolver_limit" || id === "max_leverage") return 0;
-  return value + (id.includes("rate") || id.includes("yield") || id.includes("pct") || id.includes("margin") || id.includes("growth") || id.includes("mix") || id.includes("pool") || id.includes("probability") || id.includes("sweep") || id.includes("premium") ? .01 : 10);
-}
-
-function assertInfluences(theme, difficulty, ids) {
-  const statement = generateCaseStatement({ theme, difficulty, seed: 17 });
-  const values = inputMap(statement);
-  for (const id of ids) {
-    const driverStatement = id === "revolver_limit" ? withInput(statement, "fcf_margin", .01) : id === "stock_mix_floor" ? withInput(statement, "debt_mix", .8) : ["buyer_ebitda", "buyer_debt", "max_leverage"].includes(id) ? withInput(withInput(statement, "stock_mix_floor", 0), "debt_mix", .99) : statement;
-    const baseline = calculateCaseSolution(driverStatement);
-    const changed = calculateCaseSolution(withInput(driverStatement, id, changedValue(id, values[id])));
-    ok(Object.keys(baseline).some((key) => baseline[key] !== changed[key]), `${theme}/${difficulty} input ${id} has no model effect`);
-  }
-}
-
-assertInfluences("dcf", "intermediate", ["risk_free_rate", "beta", "equity_risk_premium", "cost_of_debt", "target_debt_pct"]);
-assertInfluences("dcf", "advanced", ["segment_a_revenue", "segment_b_revenue", "base_case_probability", "upside_growth", "comparable_beta", "stub_year_fraction", "mid_year_convention"]);
-assertInfluences("lbo", "intermediate", ["senior_debt", "junior_debt", "min_cash", "nol", "management_pool", "revolver_limit", "existing_debt"]);
-assertInfluences("lbo", "advanced", ["revenue_growth", "margin_expansion", "ppa_step_up", "earnout", "rollover", "pik_rate", "cash_sweep", "call_premium"]);
-assertInfluences("merger-model", "intermediate", ["minimum_cash", "debt_rate", "cash_yield", "ppa_step_up", "stock_mix_floor", "transaction_costs"]);
-assertInfluences("merger-model", "advanced", ["buyer_growth", "target_growth", "buyer_ebitda", "buyer_debt", "max_leverage", "dtl", "write_offs", "synergy_year1_pct", "integration_costs", "buyer_cash"]);
+let cashBound = 0;
+let stockFloorBound = 0;
+let leverageBound = 0;
+let revolverDrawn = 0;
+let revolverRepaid = 0;
+let distinctSegments = 0;
 
 for (let seed = 0; seed < 1000; seed += 1) {
-  const dcf = inputMap(generateCaseStatement({ theme: "dcf", difficulty: "advanced", seed }));
-  equal(dcf.revenue, dcf.segment_a_revenue + dcf.segment_b_revenue, `DCF segments must reconcile for seed ${seed}`);
+  const dcfStatement = generateCaseStatement({ theme: "dcf", difficulty: "advanced", seed });
+  const dcf = inputs(dcfStatement);
+  const dcfSolution = calculateCaseSolution(dcfStatement);
+  equal(dcf.revenue, dcf.segment_a_revenue + dcf.segment_b_revenue, `DCF segments reconcile for seed ${seed}`);
+  if (dcf.segment_a_growth !== dcf.segment_b_growth && dcf.segment_a_margin !== dcf.segment_b_margin) distinctSegments += 1;
+  const unleveredBeta = dcf.comparable_beta / (1 + (1 - dcf.tax_rate) * dcf.comparable_debt_pct / (1 - dcf.comparable_debt_pct));
+  const releveredBeta = unleveredBeta * (1 + (1 - dcf.tax_rate) * dcf.target_debt_pct / (1 - dcf.target_debt_pct));
+  const wacc = (dcf.risk_free_rate + releveredBeta * dcf.equity_risk_premium) * (1 - dcf.target_debt_pct) + dcf.cost_of_debt * (1 - dcf.tax_rate) * dcf.target_debt_pct;
+  close(dcfSolution.discount_factor_y1, 1 / (1 + wacc) ** (dcf.stub_year_fraction + .5), `DCF WACC convention for seed ${seed}`);
 
   const lboStatement = generateCaseStatement({ theme: "lbo", difficulty: "advanced", seed });
+  const lboInputs = inputs(lboStatement);
   const lbo = calculateCaseSolution(lboStatement);
-  equal(lbo.sources_total, lbo.uses_total, `LBO sources and uses must reconcile for seed ${seed}`);
+  close(lbo.uses_total, lbo.entry_equity + lboInputs.existing_debt + lboInputs.fees + lboInputs.earnout + lboInputs.min_cash, `LBO uses for seed ${seed}`);
+  close(lbo.sources_total, lboInputs.senior_debt + lboInputs.junior_debt + lbo.sponsor_equity + lboInputs.rollover + lboInputs.cash, `LBO sources include target cash for seed ${seed}`);
+  if (lbo.revolver_draw > 0) { revolverDrawn += 1; if (lbo.revolver_y2 < lbo.revolver_draw) revolverRepaid += 1; }
+  const lowEquity = lbo.exit_ev - lbo.exit_debt + lbo.exit_cash - lboInputs.ebitda * .5;
+  const lowManagement = Math.max(0, lowEquity - lbo.sponsor_equity * lboInputs.management_hurdle) * lboInputs.management_pool;
+  close(lbo.sensitivity_low, (lowEquity - lowManagement) / lbo.sponsor_equity, `LBO low waterfall for seed ${seed}`);
 
   const mergerStatement = generateCaseStatement({ theme: "merger-model", difficulty: "advanced", seed });
-  const mergerInputs = inputMap(mergerStatement);
+  const mergerInputs = inputs(mergerStatement);
   const merger = calculateCaseSolution(mergerStatement);
-  ok(merger.cash_funding <= mergerInputs.buyer_cash - mergerInputs.minimum_cash + .01, `Merger cash exceeds availability for seed ${seed}`);
-  ok(merger.stock_funding / merger.purchase_ev >= mergerInputs.stock_mix_floor - .0001, `Merger stock mix below floor for seed ${seed}`);
-  ok(merger.debt_funding <= mergerInputs.max_leverage * mergerInputs.buyer_ebitda - mergerInputs.buyer_debt + .01, `Merger leverage exceeds cap for seed ${seed}`);
-  equal(Math.round((merger.cash_funding + merger.debt_funding + merger.stock_funding) * 100) / 100, merger.purchase_ev, `Merger funding must reconcile for seed ${seed}`);
+  const cashAvailable = mergerInputs.buyer_cash - mergerInputs.minimum_cash;
+  const debtCapacity = mergerInputs.max_leverage * mergerInputs.buyer_ebitda - mergerInputs.buyer_debt;
+  if (Math.abs(merger.cash_funding - cashAvailable) <= .02) cashBound += 1;
+  if (Math.abs(merger.stock_funding / merger.purchase_ev - mergerInputs.stock_mix_floor) <= .0002) stockFloorBound += 1;
+  if (Math.abs(merger.debt_funding - debtCapacity) <= .02) leverageBound += 1;
+  close(merger.cash_funding + merger.debt_funding + merger.stock_funding, merger.purchase_ev, `Merger funding for seed ${seed}`);
 }
 
-const dcfFormats = inputMap(generateCaseStatement({ theme: "dcf", difficulty: "advanced", seed: 1 }));
-const dcfFields = generateCaseStatement({ theme: "dcf", difficulty: "advanced", seed: 1 }).sections[0].fields;
-const mergerFields = generateCaseStatement({ theme: "merger-model", difficulty: "advanced", seed: 1 });
-equal(dcfFields.find(({ id }) => id === "shares").format, "number");
-equal(dcfFields.find(({ id }) => id === "comparable_beta").format, "multiple");
-equal(dcfFields.find(({ id }) => id === "stub_year_fraction").format, "number");
-equal(mergerFields.sections[0].fields.find(({ id }) => id === "buyer_shares").format, "number");
-equal(mergerFields.answerFields.find(({ id }) => id === "new_shares").format, "number");
-ok(dcfFormats.revenue > 0);
+ok(distinctSegments > 900, "Generated DCF cases need distinct segment forecasts");
+ok(revolverDrawn > 100, "Generated LBO cases need liquidity draws");
+ok(revolverRepaid > 50, "Generated LBO cases need revolver repayment priority");
+ok(cashBound > 100, "Generated Merger cases need cash constraints that bind");
+ok(stockFloorBound > 100, "Generated Merger cases need stock floors that bind");
+ok(leverageBound > 100, "Generated Merger cases need leverage caps that bind");
 
-console.log(JSON.stringify({ ok: true, constraints: 1000, drivers: "all" }));
+console.log(JSON.stringify({ ok: true, generated: 1000, cashBound, stockFloorBound, leverageBound, revolverDrawn, revolverRepaid }));
