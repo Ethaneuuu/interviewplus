@@ -61,7 +61,13 @@ globalThis.fetch = async (url, options = {}) => {
       failRefresh = false;
       throw new Error("REFRESH_FAILED");
     }
-    return Response.json({ sessions });
+    return Response.json({
+      sessions: sessions.map((session) => {
+        const { questionLanguage, ...config } = session.config;
+        const { localOnlyMetadata, ...projection } = session;
+        return { ...projection, config };
+      }),
+    });
   }
   throw new Error(`Unexpected fetch: ${value}`);
 };
@@ -75,7 +81,7 @@ storeUrl.searchParams.set("question-recorrection-remote-smoke", String(Date.now(
 const store = await import(storeUrl.href);
 await store.initializeApp();
 
-const started = await store.startSession({ questionCount: 2, questionLanguage: "en", theme: "Aleatoire", timerMinutes: 2 });
+const started = await store.startSession({ questionCount: 2, questionLanguage: "fr", theme: "Aleatoire", timerMinutes: 2 });
 started.questions.forEach((question, index) => store.saveAnswer(index, question.expectedAnswer));
 const completed = await store.finalizeSession();
 assert(completed.questions.every((question) => question.score === 88), "Initial remote correction failed");
@@ -86,11 +92,18 @@ const recorrected = await store.recorrectSession(completed.id);
 assert(recorrected.questions.every((question) => question.score === 91), "Successful remote upsert was treated as a failed recorrection");
 assert((await store.getResultsOverview()).sessions[0].questions.every((question) => question.score === 91), "Remote committed correction was not exposed after refresh failure");
 
+const staleState = JSON.parse(storage.get("interviewplus-state-v4"));
+staleState.activeSession.localOnlyMetadata = "keep-local";
+storage.set("interviewplus-state-v4", JSON.stringify(staleState));
+
 const reloadUrl = pathToFileURL(path.join(projectRoot, "assets/js/store.js"));
 reloadUrl.searchParams.set("question-recorrection-remote-reload", String(Date.now()));
 const reloadedStore = await import(reloadUrl.href);
 await reloadedStore.initializeApp();
 const reloaded = await reloadedStore.getSessionDetails(completed.id);
 assert(reloaded.questions.every((question) => question.score === 91), "Reload exposed the pre-commit active session instead of the remote correction");
+assert(reloaded.config.questionLanguage === "fr", "Remote projection removed the local French question language");
+assert(reloaded.questions.every((question) => question.language === "fr"), "Remote correction replaced French questions");
+assert(reloaded.localOnlyMetadata === "keep-local", "Remote projection removed local session metadata");
 
 console.log(JSON.stringify({ ok: true, correctionCalls, remoteScore: recorrected.questions[0].score }));
