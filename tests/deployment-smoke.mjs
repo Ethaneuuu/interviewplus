@@ -8,6 +8,13 @@ import { pathToFileURL } from "node:url";
 
 const run = promisify(execFile);
 
+const docs = await fs.readFile("docs/PROJECT.md", "utf8");
+for (const heading of ["Architecture", "Stack", "POST /api/correct", "Netlify", "Supabase", "OpenRouter", "Coûts et quotas", "Créer un template", "Sessions payantes"]) {
+  ok(docs.includes(heading), `Missing documentation section ${heading}`);
+}
+ok(docs.includes("openai/gpt-oss-120b:free"));
+ok(docs.includes("local-degraded"));
+
 const schema = await fs.readFile("supabase/schema.sql", "utf8");
 for (const column of ["session_type", "difficulty", "template_id", "case_seed", "case_json", "score_json", "correction_mode", "correction_provider", "correction_model"]) {
   ok(schema.includes(column), `Missing Supabase column ${column}`);
