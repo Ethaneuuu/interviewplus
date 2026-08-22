@@ -157,7 +157,8 @@ export async function initializeApp() {
   }
   try {
     await syncActiveSession();
-  } catch {
+  } catch (error) {
+    if (state.activeSession?.sessionType !== "case") throw error;
     // A timed session remains a saved draft when automatic correction is unavailable.
   }
   return {
@@ -709,21 +710,27 @@ async function syncActiveSession(forceFinalize = false) {
     return;
   }
 
-  state.activeSession.questions = await correctQuestions(state.activeSession);
-
-  state.activeSession.globalScore = calculateGlobalScore(state.activeSession.questions);
-  state.activeSession.status = "review";
-  state.activeSession.completedAt = new Date().toISOString();
+  const completed = structuredClone(state.activeSession);
+  completed.questions = await correctQuestions(completed);
+  completed.globalScore = calculateGlobalScore(completed.questions);
+  completed.status = "review";
+  completed.completedAt = new Date().toISOString();
 
   if (isRemoteBackendEnabled() && !isGuestUser(currentUser)) {
-    await upsertRemoteSession(state.activeSession);
+    await upsertRemoteSession(completed);
+    replaceRemoteSession(completed);
     if (currentUser) {
-      remoteSessionsCache = await listRemoteSessions(currentUser.id);
+      try {
+        remoteSessionsCache = await listRemoteSessions(currentUser.id);
+      } catch {
+        // The upsert succeeded; retain the committed session until a later refresh.
+      }
     }
   } else {
-    upsertLocalSession(state.activeSession);
+    upsertLocalSession(completed);
   }
 
+  state.activeSession = completed;
   persist();
 }
 
