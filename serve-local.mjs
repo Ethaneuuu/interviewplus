@@ -17,6 +17,8 @@ const publicRootFiles = new Set([
   "session.html",
   "results.html",
   "profile.html",
+  "case-setup.html",
+  "case-session.html",
   "Questions_InterviewPlus.xlsx",
   "Questions_InterviewPlus_Bilingual.xlsx",
 ]);
@@ -61,6 +63,24 @@ server.listen(port, "127.0.0.1", () => {
 async function handleApiRoute(request, response, pathname) {
   const method = request.method || "GET";
   const body = method === "GET" ? null : await readJsonBody(request);
+
+  if (method === "POST" && pathname === "/api/correct") {
+    const [{ createQuestionBankLoader }, { createCorrectionService }] = await Promise.all([
+      import("./netlify/functions/lib/question-bank.mjs"),
+      import("./netlify/functions/lib/correction-service.mjs"),
+    ]);
+    try {
+      const questionBankLoader = createQuestionBankLoader({
+        workbookBytes: await fs.readFile(path.join(projectRoot, "Questions_InterviewPlus_Bilingual.xlsx")),
+      });
+      const result = await createCorrectionService({ questionBankLoader, env: process.env }).correct(body);
+      json(response, 200, result);
+    } catch (error) {
+      const code = String(error?.message || "CORRECTION_UNAVAILABLE");
+      json(response, code === "OPENROUTER_UNAVAILABLE" ? 502 : correctionValidationError(code) ? 400 : 500, { error: code });
+    }
+    return;
+  }
 
   const db = await readDatabase();
 
@@ -314,4 +334,8 @@ function json(response, statusCode, body) {
 function text(response, statusCode, body) {
   response.writeHead(statusCode, { "Content-Type": "text/plain; charset=utf-8" });
   response.end(body);
+}
+
+function correctionValidationError(code) {
+  return ["INVALID_CORRECTION_TYPE", "INVALID_CORRECTION_ITEMS", "INVALID_CORRECTION_ITEM", "TOO_MANY_ITEMS", "ANSWER_TOO_LONG", "UNKNOWN_QUESTION"].includes(code);
 }

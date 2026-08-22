@@ -1,6 +1,15 @@
 [build]
   publish = "."
 
+[functions]
+  directory = "netlify/functions"
+  included_files = ["assets/js/xlsx.full.min.js"]
+
+[[redirects]]
+  from = "/api/correct"
+  to = "/.netlify/functions/correct"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
