@@ -8,6 +8,7 @@ const projectRoot = path.dirname(testsDir);
 const require = createRequire(import.meta.url);
 const XLSX = require(path.join(projectRoot, "assets/js/xlsx.full.min.js"));
 const storage = new Map();
+let correctionCalls = 0;
 
 globalThis.window = globalThis;
 globalThis.XLSX = XLSX;
@@ -36,6 +37,10 @@ globalThis.fetch = async (url) => {
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       },
     });
+  }
+  if (value === "/api/correct") {
+    correctionCalls += 1;
+    throw new Error("CORRECTION_UNAVAILABLE");
   }
   throw new Error(`Unexpected fetch: ${value}`);
 };
@@ -113,8 +118,8 @@ assert(
   "Missing question scores",
 );
 assert(
-  completed.questions.every((question) => question.evaluationMode === "semantic-local"),
-  "The free local evaluator was not used",
+  completed.questions.every((question) => question.evaluationMode === "local-degraded"),
+  "The degraded local evaluator was not used after correction failed",
 );
 assert(completed.globalScore >= 75, `Reference answers scored too low: ${completed.globalScore}`);
 const lowestReference = [...completed.questions].sort((a, b) => a.score - b.score)[0];
@@ -156,7 +161,7 @@ console.log(
     referenceAnswerScore: completed.globalScore,
     referenceAnswerMinimum: lowestReference.score,
     lowEffortScore: weakCompleted.globalScore,
-    externalEvaluationCalls: 0,
+    externalEvaluationCalls: correctionCalls,
     persistence: "ok",
   }),
 );

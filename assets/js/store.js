@@ -9,6 +9,7 @@ import {
   remoteSignUp,
   upsertRemoteSession,
 } from "./backend.js";
+import { requestCorrection } from "./correction-client.js";
 import { extractKeywords, normalizeText, unique } from "./keywords.js";
 
 const STORAGE_KEY = "interviewplus-state-v4";
@@ -436,6 +437,36 @@ export async function finalizeSession() {
   return getActiveSession();
 }
 
+export async function recorrectSession(sessionId) {
+  const user = getCurrentUser();
+  if (!user || !sessionId) return null;
+
+  const activeSession = getActiveSession();
+  const session = activeSession?.id === sessionId
+    ? activeSession
+    : (await getUserSessions(user.id)).find((item) => item.id === sessionId);
+  if (!isCompletedQuestionSession(session)) return session || null;
+
+  try {
+    const questions = await correctQuestions(session, false);
+    const updated = { ...session, questions, globalScore: calculateGlobalScore(questions) };
+
+    if (isRemoteBackendEnabled() && !isGuestUser(currentUser)) {
+      await upsertRemoteSession(updated);
+      remoteSessionsCache = await listRemoteSessions(user.id);
+    } else {
+      upsertLocalSession(updated);
+    }
+    if (state.activeSession?.id === updated.id) {
+      state.activeSession = structuredClone(updated);
+    }
+    persist();
+    return buildSessionView(updated);
+  } catch {
+    return session;
+  }
+}
+
 export async function getResultsOverview() {
   const user = getCurrentUser();
   const sessions = user ? await getUserSessions(user.id) : [];
@@ -535,22 +566,9 @@ async function syncActiveSession(forceFinalize = false) {
     return;
   }
 
-  state.activeSession.questions = await Promise.all(state.activeSession.questions.map(async (question) => {
-    const evaluation = await evaluateAnswer(question);
-    return {
-      ...question,
-      score: evaluation.score,
-      strengths: evaluation.strengths,
-      improvements: evaluation.improvements,
-      missingPoints: evaluation.missingPoints,
-      evaluationMode: evaluation.evaluationMode,
-    };
-  }));
+  state.activeSession.questions = await correctQuestions(state.activeSession);
 
-  const scored = state.activeSession.questions.filter((question) => isNumber(question.score));
-  state.activeSession.globalScore = scored.length
-    ? Math.round(scored.reduce((sum, question) => sum + question.score, 0) / scored.length)
-    : 0;
+  state.activeSession.globalScore = calculateGlobalScore(state.activeSession.questions);
   state.activeSession.status = "review";
   state.activeSession.completedAt = new Date().toISOString();
 
@@ -651,12 +669,69 @@ function pickRowsForSession(config) {
   return shuffle(rows).slice(0, requestedCount);
 }
 
-async function evaluateAnswer(question) {
-  return localizeEvaluation(evaluateAnswerLocally(
-    question.candidateAnswer || "",
-    buildExpectedReference(question),
-    question.question || ""
-  ), question.language);
+async function correctQuestions(session, fallback = true) {
+  persist();
+  const response = await requestCorrection({
+    type: "questions",
+    items: session.questions.map(({ questionId, language, candidateAnswer }) => ({
+      questionId,
+      language,
+      answer: candidateAnswer || "",
+    })),
+  }).catch(() => null);
+  const corrections = correctionMap(response, session.questions);
+  if (corrections) {
+    return session.questions.map((question) => ({ ...question, ...corrections.get(question.questionId) }));
+  }
+  if (!fallback) throw new Error("CORRECTION_UNAVAILABLE");
+  return session.questions.map((question) => {
+    const evaluation = localizeEvaluation(evaluateAnswerLocally(
+      question.candidateAnswer || "",
+      buildExpectedReference(question),
+      question.question || ""
+    ), question.language);
+    return {
+      ...question,
+      ...evaluation,
+      evaluationMode: "local-degraded",
+      correctionProvider: "local",
+      correctionModel: null,
+    };
+  });
+}
+
+function correctionMap(response, questions) {
+  if (!response || response.mode !== "openrouter" || response.provider !== "openrouter" || typeof response.model !== "string" || !Array.isArray(response.items) || response.items.length !== questions.length) {
+    return null;
+  }
+  const expected = new Set(questions.map((question) => question.questionId));
+  const corrections = new Map();
+  for (const item of response.items) {
+    if (!item || !expected.has(item.questionId) || corrections.has(item.questionId) || !isNumber(item.score) || item.score < 0 || item.score > 100 || !Array.isArray(item.recognizedConcepts) || !item.recognizedConcepts.every((value) => typeof value === "string") || !Array.isArray(item.missingElements) || !item.missingElements.every((value) => typeof value === "string") || typeof item.feedback !== "string") {
+      return null;
+    }
+    corrections.set(item.questionId, {
+      score: item.score,
+      strengths: item.recognizedConcepts,
+      improvements: [item.feedback],
+      missingPoints: item.missingElements,
+      evaluationMode: response.mode,
+      correctionProvider: response.provider,
+      correctionModel: response.model,
+    });
+  }
+  return corrections.size === expected.size ? corrections : null;
+}
+
+function calculateGlobalScore(questions) {
+  const scored = questions.filter((question) => isNumber(question.score));
+  return scored.length
+    ? Math.round(scored.reduce((sum, question) => sum + question.score, 0) / scored.length)
+    : 0;
+}
+
+function isCompletedQuestionSession(session) {
+  return Boolean(session && session.status === "review" && session.type !== "case" && Array.isArray(session.questions));
 }
 
 function localizeEvaluation(evaluation, language) {

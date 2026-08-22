@@ -3,6 +3,7 @@ import {
   getResultsOverview,
   getSessionDetails,
   initializeApp,
+  recorrectSession,
   continueAsGuest,
   isGuestUser,
   requireAuthorizedAccess,
@@ -14,6 +15,7 @@ const resultsList = document.getElementById("resultsList");
 const detailPanel = document.getElementById("sessionDetailPanel");
 const detailTitle = document.getElementById("detailTitle");
 const detailScore = document.getElementById("detailScore");
+const recorrectButton = document.getElementById("recorrectSession");
 const detailQuestionNav = document.getElementById("detailQuestionNav");
 const detailCorrection = document.getElementById("detailCorrection");
 
@@ -26,6 +28,18 @@ if (!getCurrentUser()) {
 }
 await render();
 
+recorrectButton.addEventListener("click", async () => {
+  const sessionId = recorrectButton.dataset.sessionId;
+  if (!sessionId) return;
+  recorrectButton.disabled = true;
+  recorrectButton.textContent = t("Recorrection...", "Regrading...");
+  try {
+    await recorrectSession(sessionId);
+  } finally {
+    await render();
+  }
+});
+
 async function render() {
   const overview = await getResultsOverview();
   const selectedSession = await getSelectedSession(overview);
@@ -37,6 +51,7 @@ async function render() {
     renderSessionDetail(selectedSession);
   } else {
     detailPanel.classList.add("hidden");
+    recorrectButton.classList.add("hidden");
   }
 }
 
@@ -101,6 +116,11 @@ function renderSessionDetail(session) {
   detailPanel.classList.remove("hidden");
   detailTitle.textContent = `${displayTheme(session.config.theme)} | ${languageLabel(session.config.questionLanguage)} | ${formatDate(session.completedAt || session.startedAt)}`;
   detailScore.textContent = `${t("Score global", "Overall score")} ${session.globalScore ?? "--"}%`;
+  const canRecorrect = session.status === "review" && session.type !== "case";
+  recorrectButton.classList.toggle("hidden", !canRecorrect);
+  recorrectButton.disabled = false;
+  recorrectButton.dataset.sessionId = canRecorrect ? session.id : "";
+  recorrectButton.textContent = t("Recorriger", "Regrade");
 
   detailQuestionNav.innerHTML = "";
   session.questions.forEach((question, index) => {
@@ -183,7 +203,10 @@ function scoreTone(score) {
 }
 
 function evaluationLabel(mode) {
-  return t("Correction locale gratuite", "Free local scoring");
+  if (mode === "openrouter") return t("Correction IA", "AI feedback");
+  if (mode === "local-degraded") return t("Correction locale dégradée", "Degraded local feedback");
+  if (mode === "deterministic") return t("Correction numérique", "Numeric feedback");
+  return t("Correction locale dégradée", "Degraded local feedback");
 }
 
 function languageLabel(language) {
