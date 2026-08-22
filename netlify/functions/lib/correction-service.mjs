@@ -91,7 +91,8 @@ function validItems(items, expectedIds) {
   return items.every((item) => {
     if (!item || typeof item.questionId !== "string" || received.has(item.questionId) || !expected.has(item.questionId)) return false;
     if (!Number.isFinite(item.score) || item.score < 0 || item.score > 100) return false;
-    if (!Array.isArray(item.recognizedConcepts) || !Array.isArray(item.missingElements) || typeof item.feedback !== "string") return false;
+    if (!Array.isArray(item.recognizedConcepts) || !item.recognizedConcepts.every((value) => typeof value === "string")) return false;
+    if (!Array.isArray(item.missingElements) || !item.missingElements.every((value) => typeof value === "string") || typeof item.feedback !== "string") return false;
     received.add(item.questionId);
     return true;
   }) && received.size === expected.size;
@@ -103,6 +104,12 @@ function normalize(items, model) {
     mode: "openrouter",
     provider: "openrouter",
     model,
-    items,
+    items: items.map(({ questionId, score, recognizedConcepts, missingElements, feedback }) => ({
+      questionId,
+      score,
+      recognizedConcepts,
+      missingElements,
+      feedback,
+    })),
   };
 }

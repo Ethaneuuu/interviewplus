@@ -1,4 +1,4 @@
-import { equal, rejects } from "node:assert/strict";
+import { deepEqual, equal, rejects } from "node:assert/strict";
 import { createCorrectionService } from "../netlify/functions/lib/correction-service.mjs";
 
 const bank = new Map([["fr:1", {
@@ -78,5 +78,32 @@ const invalidJsonService = createCorrectionService({
 });
 await invalidJsonService.correct(payload);
 equal(invalidJsonCalls.join(","), "openai/gpt-oss-120b:free,openai/gpt-oss-120b");
+
+const malformedConceptItems = [{ ...validItems[0], recognizedConcepts: [42], missingElements: [null] }];
+const malformedConceptCalls = [];
+const malformedConceptService = createCorrectionService({
+  fetchImpl: async (_url, options) => {
+    malformedConceptCalls.push(JSON.parse(options.body).model);
+    if (malformedConceptCalls.length === 1) return response(malformedConceptItems);
+    return response([{ ...validItems[0], providerOnly: "discard" }]);
+  },
+  questionBankLoader: async () => bank,
+  env,
+});
+const normalized = await malformedConceptService.correct(payload);
+equal(malformedConceptCalls.join(","), "openai/gpt-oss-120b:free,openai/gpt-oss-120b");
+deepEqual(normalized.items, validItems);
+
+const invalidConceptCalls = [];
+const invalidConceptService = createCorrectionService({
+  fetchImpl: async (_url, options) => {
+    invalidConceptCalls.push(JSON.parse(options.body).model);
+    return response(malformedConceptItems);
+  },
+  questionBankLoader: async () => bank,
+  env,
+});
+await rejects(() => invalidConceptService.correct(payload), /OPENROUTER_UNAVAILABLE/);
+equal(invalidConceptCalls.join(","), "openai/gpt-oss-120b:free,openai/gpt-oss-120b");
 
 console.log(JSON.stringify({ ok: true, fallback: "free-to-paid", validation: "ok" }));

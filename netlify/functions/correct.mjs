@@ -7,12 +7,20 @@ const service = createCorrectionService({ questionBankLoader });
 export async function handler(event) {
   if (event.httpMethod !== "POST") return reply(405, { error: "METHOD_NOT_ALLOWED" });
 
+  let payload;
   try {
-    const payload = JSON.parse(event.body || "{}");
+    payload = JSON.parse(event.body || "{}");
+  } catch {
+    return reply(400, { error: "INVALID_JSON" });
+  }
+
+  try {
     return reply(200, await service.correct(payload));
   } catch (error) {
     const code = String(error?.message || "CORRECTION_UNAVAILABLE");
-    return reply(code === "OPENROUTER_UNAVAILABLE" ? 502 : isValidationError(code) ? 400 : 500, { error: code });
+    if (code === "OPENROUTER_UNAVAILABLE") return reply(502, { error: code });
+    if (isValidationError(code)) return reply(400, { error: code });
+    return reply(500, { error: "INTERNAL_ERROR" });
   }
 }
 
