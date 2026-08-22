@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterviewPlus | Cas pratique chronométré</title>
+  <meta name="description" content="Complétez un cas pratique M&A sous timer et recevez une correction immédiate.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/app.css">
+  <script src="./assets/js/config.js"></script>
+  <script type="module" defer src="./assets/js/case-session.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/img/interviewplus-logo.svg" alt="InterviewPlus"></a>
+      <nav class="topnav" aria-label="Navigation principale">
+        <a class="nav-link" href="./index.html">Accueil</a>
+        <a class="nav-link" href="./setup.html">Nouvelle session</a>
+        <a class="nav-link is-active" href="./case-setup.html">Cas pratiques</a>
+        <a class="nav-link" href="./results.html">Sessions</a>
+        <a class="nav-link" href="./profile.html">Profil</a>
+      </nav>
+    </header>
+
+    <main class="page">
+      <section class="session-banner">
+        <div><p class="eyebrow">Cas pratiques</p><h1 id="caseTitle">Cas pratique en cours</h1><p class="page-intro" id="caseInstructions">Chargement du cas…</p></div>
+        <div class="timer-card"><span>Temps restant</span><strong id="caseTimerDisplay">--:--</strong></div>
+      </section>
+
+      <section class="case-grid">
+        <article class="panel"><div id="caseStatement"></div></article>
+        <aside class="panel"><div class="section-head"><div><p class="eyebrow">Réponses</p><h2>Calculs</h2></div></div><form class="field-stack" id="caseAnswers"></form><div class="button-row"><button class="button button-primary" id="finishCase" type="button">Valider et recevoir la correction</button></div><p class="inline-note" id="caseMessage" role="status"></p></aside>
+      </section>
+    </main>
+
+    <footer class="site-footer"><span>InterviewPlus</span><span>Preparation M&A premium</span><a href="mailto:contact@interviewplus.fr">Contact</a></footer>
+  </div>
+</body>
+</html>

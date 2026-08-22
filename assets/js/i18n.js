@@ -127,6 +127,20 @@ const pairs = [
   ["Votre nom", "Your name"],
   ["Choisissez un mot de passe", "Choose a password"],
   ["Confirmez le mot de passe", "Confirm the password"],
+  ["Cas pratiques", "Practical cases"],
+  ["Construire un modèle sous pression", "Build a model under pressure"],
+  ["S'entraîner sur des cas chronométrés développe les automatismes, la rigueur des calculs et la capacité à justifier une recommandation en entretien.", "Timed case practice develops fluency, calculation discipline and the ability to justify a recommendation in an interview."],
+  ["Difficulté", "Difficulty"],
+  ["Débutant", "Easy"],
+  ["Intermédiaire", "Intermediate"],
+  ["Avancé", "Advanced"],
+  ["Lancer le cas pratique", "Start practical case"],
+  ["Cas pratique en cours", "Practical case in progress"],
+  ["Données du cas", "Case inputs"],
+  ["Réponses", "Answers"],
+  ["Calculs", "Calculations"],
+  ["Recommandation", "Recommendation"],
+  ["Valider et recevoir la correction", "Submit and get feedback"],
 ];
 
 const lookup = new Map();

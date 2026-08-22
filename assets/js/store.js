@@ -10,6 +10,7 @@ import {
   upsertRemoteSession,
 } from "./backend.js";
 import { requestCorrection } from "./correction-client.js";
+import { CASE_DIFFICULTIES, CASE_THEMES, generateCaseStatement } from "./case-templates.js";
 import { extractKeywords, normalizeText, unique } from "./keywords.js";
 
 const STORAGE_KEY = "interviewplus-state-v4";
@@ -121,6 +122,11 @@ const defaultState = {
     questionLanguage: "en",
     theme: "Aleatoire",
     timerMinutes: 10,
+  },
+  caseConfig: {
+    theme: "dcf",
+    difficulty: "easy",
+    timerMinutes: 60,
   },
   activeSession: null,
   localSessions: [],
@@ -287,6 +293,15 @@ export function setSessionConfig(config) {
   persist();
 }
 
+export function getCaseConfig() {
+  return structuredClone(state.caseConfig);
+}
+
+export function setCaseConfig(config) {
+  state.caseConfig = { ...state.caseConfig, ...config };
+  persist();
+}
+
 export async function requestPasswordReset(email) {
   if (!isValidEmail(email)) {
     throw new Error("INVALID_EMAIL");
@@ -378,6 +393,45 @@ export async function startSession(config) {
   return getActiveSession();
 }
 
+export async function startCaseSession(config = {}) {
+  if (isRestrictedAccess() && !currentUser) throw new Error("ACCESS_REQUIRED");
+  const user = currentUser || await continueAsGuest();
+  const caseConfig = { ...state.caseConfig, ...config };
+  if (!CASE_THEMES.includes(caseConfig.theme)) throw new Error("INVALID_CASE_THEME");
+  if (!CASE_DIFFICULTIES.includes(caseConfig.difficulty)) throw new Error("INVALID_CASE_DIFFICULTY");
+  if (![30, 45, 60].includes(Number(caseConfig.timerMinutes))) throw new Error("INVALID_CASE_TIMER");
+
+  const seed = config.seed === undefined ? randomCaseSeed() : config.seed;
+  const statement = generateCaseStatement({ theme: caseConfig.theme, difficulty: caseConfig.difficulty, seed });
+  const now = Date.now();
+  state.caseConfig = {
+    theme: caseConfig.theme,
+    difficulty: caseConfig.difficulty,
+    timerMinutes: Number(caseConfig.timerMinutes),
+  };
+  state.activeSession = {
+    id: safeId(),
+    userId: user.id,
+    userName: user.name,
+    sourceLabel: "Cas pratiques",
+    sessionType: "case",
+    status: "running",
+    startedAt: new Date(now).toISOString(),
+    endsAt: new Date(now + state.caseConfig.timerMinutes * 60 * 1000).toISOString(),
+    completedAt: null,
+    currentIndex: 0,
+    globalScore: null,
+    correctionMode: null,
+    correctionProvider: null,
+    correctionModel: null,
+    config: { theme: statement.theme, difficulty: statement.difficulty, timerMinutes: state.caseConfig.timerMinutes, questionCount: 0 },
+    questions: [],
+    caseData: { templateId: statement.templateId, difficulty: statement.difficulty, seed, statement, answers: {}, grade: null },
+  };
+  persist();
+  return getActiveSession();
+}
+
 export function getActiveSession() {
   if (!state.activeSession) {
     return null;
@@ -397,6 +451,16 @@ export function saveAnswer(index, answer) {
     return null;
   }
   question.candidateAnswer = String(answer || "");
+  persist();
+  return getActiveSession();
+}
+
+export function saveCaseAnswer(fieldId, value) {
+  if (!state.activeSession || state.activeSession.sessionType !== "case" || state.activeSession.status !== "running") return null;
+  const { statement } = state.activeSession.caseData;
+  const valid = fieldId === "recommendation" ? Boolean(statement.recommendation) : statement.answerFields.some((field) => field.id === fieldId);
+  if (!valid) return null;
+  state.activeSession.caseData.answers[fieldId] = String(value ?? "");
   persist();
   return getActiveSession();
 }
@@ -434,6 +498,42 @@ export function previousQuestion() {
 
 export async function finalizeSession() {
   await syncActiveSession(true);
+  return getActiveSession();
+}
+
+export async function finalizeCaseSession() {
+  const session = state.activeSession;
+  if (!session || session.sessionType !== "case" || session.status !== "running") return getActiveSession();
+  persist();
+  const { statement, answers, seed } = session.caseData;
+  const numericAnswers = Object.fromEntries(statement.answerFields.flatMap((field) => {
+    const value = answers[field.id];
+    return value === undefined || String(value).trim() === "" ? [] : [[field.id, Number(value)]];
+  }));
+  const result = await requestCorrection({
+    type: "case",
+    sessionId: session.id,
+    theme: statement.theme,
+    difficulty: statement.difficulty,
+    seed,
+    answers: numericAnswers,
+    ...(statement.recommendation ? { recommendation: answers.recommendation || "" } : {}),
+  });
+  session.caseData.grade = result;
+  session.globalScore = result.score;
+  session.correctionMode = result.mode || "deterministic";
+  session.correctionProvider = result.provider || null;
+  session.correctionModel = result.model || null;
+  session.status = "review";
+  session.completedAt = new Date().toISOString();
+
+  if (isRemoteBackendEnabled() && !isGuestUser(currentUser)) {
+    await upsertRemoteSession(session);
+    if (currentUser) remoteSessionsCache = await listRemoteSessions(currentUser.id);
+  } else {
+    upsertLocalSession(session);
+  }
+  persist();
   return getActiveSession();
 }
 
@@ -486,7 +586,7 @@ export async function recorrectSession(sessionId) {
 export async function getResultsOverview() {
   const user = getCurrentUser();
   const sessions = user ? await getUserSessions(user.id) : [];
-  const scoreList = sessions.flatMap((session) => session.questions.map((question) => question.score).filter(isNumber));
+  const scoreList = sessions.map((session) => session.globalScore).filter(isNumber);
   return {
     currentUser: user,
     activeSession: getActiveSession(),
@@ -517,6 +617,7 @@ export async function getProfileAnalytics() {
   const categoryMap = new Map();
 
   sessions.forEach((session) => {
+    if (session.sessionType === "case") return;
     session.questions.forEach((question) => {
       if (!isNumber(question.score)) return;
       if (!categoryMap.has(question.category)) {
@@ -536,7 +637,7 @@ export async function getProfileAnalytics() {
     }))
     .sort((a, b) => b.averageScore - a.averageScore);
 
-  const allScores = sessions.flatMap((session) => session.questions.map((question) => question.score).filter(isNumber));
+  const allScores = sessions.map((session) => session.globalScore).filter(isNumber);
 
   return {
     user,
@@ -587,6 +688,11 @@ async function syncActiveSession(forceFinalize = false) {
 
   const expired = Date.now() >= new Date(state.activeSession.endsAt).getTime();
   if (!expired && !forceFinalize) {
+    return;
+  }
+
+  if (state.activeSession.sessionType === "case") {
+    await finalizeCaseSession();
     return;
   }
 
@@ -755,7 +861,7 @@ function calculateGlobalScore(questions) {
 }
 
 function isCompletedQuestionSession(session) {
-  return Boolean(session && session.status === "review" && session.type !== "case" && Array.isArray(session.questions));
+  return Boolean(session && session.status === "review" && session.sessionType !== "case" && Array.isArray(session.questions));
 }
 
 function localizeEvaluation(evaluation, language) {
@@ -1227,6 +1333,10 @@ function loadState() {
         ...defaultState.sessionConfig,
         ...(parsed.sessionConfig || {}),
       },
+      caseConfig: {
+        ...defaultState.caseConfig,
+        ...(parsed.caseConfig || {}),
+      },
     };
   } catch (error) {
     return structuredClone(defaultState);
@@ -1305,6 +1415,11 @@ function safeId() {
     return window.crypto.randomUUID();
   }
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function randomCaseSeed() {
+  if (window.crypto?.getRandomValues) return window.crypto.getRandomValues(new Uint32Array(1))[0];
+  return Math.floor(Math.random() * 0x100000000);
 }
 
 function isNumber(value) {

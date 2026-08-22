@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InterviewPlus | Cas pratiques</title>
+  <meta name="description" content="Entraînez-vous sur des cas pratiques M&A chronométrés.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/app.css">
+  <script src="./assets/js/config.js"></script>
+  <script type="module" defer src="./assets/js/case-setup.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/img/interviewplus-logo.svg" alt="InterviewPlus"></a>
+      <nav class="topnav" aria-label="Navigation principale">
+        <a class="nav-link" href="./index.html">Accueil</a>
+        <a class="nav-link" href="./setup.html">Nouvelle session</a>
+        <a class="nav-link is-active" href="./case-setup.html">Cas pratiques</a>
+        <a class="nav-link" href="./results.html">Sessions</a>
+        <a class="nav-link" href="./profile.html">Profil</a>
+      </nav>
+    </header>
+
+    <main class="page narrow-page">
+      <section class="page-header simple-header">
+        <div>
+          <p class="eyebrow">Cas pratiques</p>
+          <h1>Construire un modèle sous pression</h1>
+          <p class="page-intro">S'entraîner sur des cas chronométrés développe les automatismes, la rigueur des calculs et la capacité à justifier une recommandation en entretien.</p>
+        </div>
+      </section>
+
+      <section class="panel setup-panel">
+        <div class="field-stack">
+          <label class="field" for="caseTheme"><span>Theme</span><select id="caseTheme"><option value="dcf">DCF</option><option value="lbo">LBO</option><option value="merger-model">Merger model</option></select></label>
+          <label class="field" for="caseDifficulty"><span>Difficulté</span><select id="caseDifficulty"><option value="easy">Débutant</option><option value="intermediate">Intermédiaire</option><option value="advanced">Avancé</option></select></label>
+          <label class="field" for="caseTimer"><span>Timer</span><select id="caseTimer"><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option></select></label>
+        </div>
+        <div class="button-row"><button class="button button-primary" id="startCase" type="button">Lancer le cas pratique</button></div>
+        <p class="inline-note" id="caseSetupMessage" role="status"></p>
+      </section>
+    </main>
+
+    <footer class="site-footer"><span>InterviewPlus</span><span>Preparation M&A premium</span><a href="mailto:contact@interviewplus.fr">Contact</a></footer>
+  </div>
+</body>
+</html>

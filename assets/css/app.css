@@ -760,6 +760,30 @@ button {
   grid-template-columns: 1.3fr 0.85fr;
 }
 
+.case-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.85fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.case-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 24px;
+}
+
+.case-table th,
+.case-table td {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.case-table th {
+  color: var(--ink);
+}
+
 .compact-panel {
   min-height: 210px;
 }
@@ -1142,6 +1166,10 @@ button {
   .grid-2,
   .grid-3,
   .grid-session {
+    grid-template-columns: 1fr;
+  }
+
+  .case-grid {
     grid-template-columns: 1fr;
   }
 
