@@ -153,6 +153,13 @@ export function t(fr, en = fr) {
   return uiLanguage === "en" ? en : fr;
 }
 
+export function evaluationLabel(mode, translate = t) {
+  if (mode === "openrouter") return translate("Correction IA", "AI feedback");
+  if (mode === "local-degraded") return translate("Correction locale dégradée", "Degraded local feedback");
+  if (mode === "deterministic") return translate("Correction numérique", "Numeric feedback");
+  return translate("Correction locale gratuite", "Free local scoring");
+}
+
 export function applyTranslations(root = document) {
   if (applying) return;
   applying = true;

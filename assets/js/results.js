@@ -8,7 +8,7 @@ import {
   isGuestUser,
   requireAuthorizedAccess,
 } from "./store.js";
-import { t } from "./i18n.js";
+import { evaluationLabel, t } from "./i18n.js";
 
 const metrics = document.getElementById("resultsMetrics");
 const resultsList = document.getElementById("resultsList");
@@ -200,13 +200,6 @@ function scoreTone(score) {
   if (score >= 80) return "score-high";
   if (score >= 60) return "score-mid";
   return "score-low";
-}
-
-function evaluationLabel(mode) {
-  if (mode === "openrouter") return t("Correction IA", "AI feedback");
-  if (mode === "local-degraded") return t("Correction locale dégradée", "Degraded local feedback");
-  if (mode === "deterministic") return t("Correction numérique", "Numeric feedback");
-  return t("Correction locale dégradée", "Degraded local feedback");
 }
 
 function languageLabel(language) {

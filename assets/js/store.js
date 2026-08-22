@@ -453,14 +453,25 @@ export async function recorrectSession(sessionId) {
 
     if (isRemoteBackendEnabled() && !isGuestUser(currentUser)) {
       await upsertRemoteSession(updated);
-      remoteSessionsCache = await listRemoteSessions(user.id);
-    } else {
-      upsertLocalSession(updated);
+      try {
+        remoteSessionsCache = await listRemoteSessions(user.id);
+      } catch {
+        // The remote upsert already committed the correction.
+      }
+      replaceRemoteSession(updated);
+      if (state.activeSession?.id === updated.id) {
+        state.activeSession = structuredClone(updated);
+      }
+      return buildSessionView(updated);
     }
-    if (state.activeSession?.id === updated.id) {
-      state.activeSession = structuredClone(updated);
-    }
-    persist();
+
+    const nextState = structuredClone(state);
+    const index = nextState.localSessions.findIndex((item) => item.id === updated.id);
+    if (index >= 0) nextState.localSessions[index] = structuredClone(updated);
+    else nextState.localSessions.unshift(structuredClone(updated));
+    if (nextState.activeSession?.id === updated.id) nextState.activeSession = structuredClone(updated);
+    persist(nextState);
+    state = nextState;
     return buildSessionView(updated);
   } catch {
     return session;
@@ -1036,6 +1047,12 @@ function upsertLocalSession(session) {
   }
 }
 
+function replaceRemoteSession(session) {
+  const index = remoteSessionsCache.findIndex((item) => item.id === session.id);
+  if (index >= 0) remoteSessionsCache[index] = structuredClone(session);
+  else remoteSessionsCache.unshift(structuredClone(session));
+}
+
 function sanitizeLocalUser(user) {
   return {
     id: user.id,
@@ -1203,8 +1220,8 @@ function loadState() {
   }
 }
 
-function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function persist(snapshot = state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
 }
 
 function extractKeyPoints(text) {

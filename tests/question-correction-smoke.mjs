@@ -10,14 +10,30 @@ const XLSX = require(path.join(projectRoot, "assets/js/xlsx.full.min.js"));
 const storage = new Map();
 let correctionCalls = 0;
 let correctionAvailable = true;
+let responseScore = 88;
+let failAfterCorrection = false;
+let failNextPersist = false;
 
 globalThis.window = globalThis;
 globalThis.XLSX = XLSX;
+globalThis.document = {
+  body: {},
+  documentElement: {},
+  querySelector() { return null; },
+  getElementById() { return null; },
+  createTreeWalker() { return { nextNode() { return null; } }; },
+};
+globalThis.NodeFilter = { SHOW_TEXT: 4 };
+globalThis.MutationObserver = class { observe() {} };
 globalThis.localStorage = {
   getItem(key) {
     return storage.has(key) ? storage.get(key) : null;
   },
   setItem(key, value) {
+    if (key === "interviewplus-state-v4" && failNextPersist) {
+      failNextPersist = false;
+      throw new Error("PERSIST_FAILED");
+    }
     storage.set(key, String(value));
   },
   removeItem(key) {
@@ -40,7 +56,8 @@ globalThis.fetch = async (url, options = {}) => {
     assert(payload.items.every((item) => Object.keys(item).sort().join(",") === "answer,language,questionId"), "Correction request sent extra question data");
     const persisted = JSON.parse(storage.get("interviewplus-state-v4"));
     assert(persisted.activeSession.questions.every((question) => question.candidateAnswer), "Answers were not persisted before correction");
-    const score = correctionCalls === 1 ? 88 : 91;
+    if (failAfterCorrection) failNextPersist = true;
+    const score = responseScore;
     return Response.json({
       score,
       mode: "openrouter",
@@ -65,8 +82,14 @@ function assert(condition, message) {
 const storeUrl = pathToFileURL(path.join(projectRoot, "assets/js/store.js"));
 storeUrl.searchParams.set("question-correction-smoke", String(Date.now()));
 const store = await import(storeUrl.href);
+const i18nUrl = pathToFileURL(path.join(projectRoot, "assets/js/i18n.js"));
+i18nUrl.searchParams.set("question-correction-smoke", String(Date.now()));
+const { evaluationLabel } = await import(i18nUrl.href);
 await store.initializeApp();
 await store.continueAsGuest();
+
+assert(evaluationLabel("semantic-local", (fr) => fr) === "Correction locale gratuite", "Historical semantic-local label is not free local scoring");
+assert(evaluationLabel(undefined, (_, en) => en) === "Free local scoring", "Historical missing mode label is not free local scoring");
 
 const aiSession = await store.startSession({
   questionCount: 2,
@@ -85,14 +108,36 @@ assert(completed.questions.every((question) => question.evaluationMode === "open
 assert(completed.questions.every((question) => question.correctionProvider === "openrouter"), "AI correction provider was not stored");
 assert(completed.questions.every((question) => question.correctionModel === "openai/gpt-oss-120b:free"), "AI correction model was not stored");
 
+const nonCorrection = (question) => {
+  const copy = { ...question };
+  ["score", "strengths", "improvements", "missingPoints", "evaluationMode", "correctionProvider", "correctionModel"].forEach((key) => delete copy[key]);
+  return copy;
+};
+const beforeRecorrection = completed.questions.map(nonCorrection);
+responseScore = 91;
 const recorrected = await store.recorrectSession(completed.id);
 assert(correctionCalls === 2, "Recorrection did not make a correction request");
 assert(recorrected.questions.every((question) => question.score === 91), "Recorrection did not replace correction fields");
+assert(JSON.stringify(recorrected.questions.map(nonCorrection)) === JSON.stringify(beforeRecorrection), "Successful recorrection changed fields outside correction data");
 
 correctionAvailable = false;
 const unchanged = await store.recorrectSession(recorrected.id);
 assert(unchanged.questions.every((question) => question.score === 91), "Failed recorrection replaced the previous result");
 
+correctionAvailable = true;
+responseScore = 95;
+failAfterCorrection = true;
+const beforePersistFailure = await store.getSessionDetails(recorrected.id);
+const returnedAfterPersistFailure = await store.recorrectSession(recorrected.id);
+const overviewAfterPersistFailure = await store.getResultsOverview();
+const durableAfterPersistFailure = JSON.parse(storage.get("interviewplus-state-v4")).localSessions.find((session) => session.id === recorrected.id);
+assert(returnedAfterPersistFailure.questions.every((question) => question.score === 91), "Persist failure returned a new correction");
+assert(overviewAfterPersistFailure.sessions.find((session) => session.id === recorrected.id).questions.every((question) => question.score === 91), "Persist failure changed the in-memory session");
+assert(durableAfterPersistFailure.questions.every((question) => question.score === 91), "Persist failure changed the durable session");
+assert(JSON.stringify(beforePersistFailure.questions.map(nonCorrection)) === JSON.stringify(returnedAfterPersistFailure.questions.map(nonCorrection)), "Persist failure changed fields outside correction data");
+failAfterCorrection = false;
+
+correctionAvailable = false;
 const fallbackSession = await store.startSession({
   questionCount: 2,
   questionLanguage: "en",
