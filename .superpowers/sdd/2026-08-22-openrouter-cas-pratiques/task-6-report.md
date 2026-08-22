@@ -27,3 +27,18 @@
 - `tests/case-flow-smoke.mjs`, `tests/case-results-dom-smoke.mjs`
 
 DONE
+
+## Correctif de revue
+
+- `case-setup.html?theme=…&difficulty=…` valide désormais les deux paramètres contre les constantes de cas et les utilise avant la configuration mémorisée.
+- Le titre de résultat est composé à partir des libellés localisés; chaque sortie financière visible a un libellé FR/EN explicite dans `i18n.js`.
+- Le tableau expose ses scopes de colonnes et de lignes; les deux pages Cas pratiques annoncent `aria-current="page"`.
+
+### TDD et vérification
+
+- RED : `tests/case-setup-query-smoke.mjs` a confirmé que la configuration stockée (`dcf` / `easy`) l'emportait à tort sur l'URL (`merger-model` / `advanced`).
+- RED : `tests/case-results-i18n-smoke.mjs` a confirmé le titre généré anglais, puis l'absence des labels traduits et des scopes.
+- GREEN : les nouveaux smokes vérifient la priorité URL, un Merger Model avancé en FR et EN, les libellés explicites et les scopes.
+- La suite complète `tests/*-smoke.mjs`, les contrôles syntaxiques et `git diff --check` passent.
+
+DONE

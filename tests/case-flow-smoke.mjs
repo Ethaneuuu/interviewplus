@@ -9,6 +9,10 @@ for (const page of ["index.html", "auth.html", "setup.html", "session.html", "re
   const html = await fs.readFile(path.join(projectRoot, page), "utf8");
   ok(html.includes("case-setup.html"), `${page} misses Cas pratiques navigation`);
 }
+for (const page of ["case-setup.html", "case-session.html"]) {
+  const html = await fs.readFile(path.join(projectRoot, page), "utf8");
+  ok(html.includes('aria-current="page"'), `${page} misses active-page state`);
+}
 const resultsSource = await fs.readFile(path.join(projectRoot, "assets/js/results.js"), "utf8");
 ok(resultsSource.includes("renderCaseDetail"));
 ok(resultsSource.includes("Réussi"));

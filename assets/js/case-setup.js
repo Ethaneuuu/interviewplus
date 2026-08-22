@@ -1,4 +1,5 @@
 import { continueAsGuest, getCaseConfig, getCurrentUser, initializeApp, requireAuthorizedAccess, setCaseConfig, startCaseSession } from "./store.js";
+import { CASE_DIFFICULTIES, CASE_THEMES } from "./case-templates.js";
 import { t } from "./i18n.js";
 
 const theme = document.getElementById("caseTheme");
@@ -12,8 +13,9 @@ requireAuthorizedAccess("case-setup.html");
 if (!getCurrentUser()) await continueAsGuest();
 
 const config = getCaseConfig();
-theme.value = config.theme;
-difficulty.value = config.difficulty;
+const query = new URLSearchParams(window.location.search);
+theme.value = CASE_THEMES.includes(query.get("theme")) ? query.get("theme") : config.theme;
+difficulty.value = CASE_DIFFICULTIES.includes(query.get("difficulty")) ? query.get("difficulty") : config.difficulty;
 timer.value = String(config.timerMinutes);
 
 startButton.addEventListener("click", async () => {

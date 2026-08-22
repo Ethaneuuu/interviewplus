@@ -1,5 +1,16 @@
 const STORAGE_KEY = "interviewplus-ui-language";
 
+const caseOutputLabels = {
+  ufcf_y1: ["Flux de trésorerie disponible non endetté A1", "Unlevered free cash flow Y1"], ufcf_y2: ["Flux de trésorerie disponible non endetté A2", "Unlevered free cash flow Y2"], ufcf_y3: ["Flux de trésorerie disponible non endetté A3", "Unlevered free cash flow Y3"], ufcf_y4: ["Flux de trésorerie disponible non endetté A4", "Unlevered free cash flow Y4"], ufcf_y5: ["Flux de trésorerie disponible non endetté A5", "Unlevered free cash flow Y5"],
+  pv_ufcf: ["Valeur actuelle des flux de trésorerie", "Present value of free cash flow"], terminal_value: ["Valeur terminale", "Terminal value"], enterprise_value: ["Valeur d'entreprise", "Enterprise value"], equity_value: ["Valeur des capitaux propres", "Equity value"], share_price: ["Cours par action", "Share price"], sensitivity_low: ["Sensibilité basse", "Low sensitivity"], sensitivity_high: ["Sensibilité haute", "High sensitivity"],
+  ebitda_y1: ["EBITDA A1", "EBITDA Y1"], ebitda_y2: ["EBITDA A2", "EBITDA Y2"], ebitda_y3: ["EBITDA A3", "EBITDA Y3"], discount_factor_y1: ["Facteur d'actualisation A1", "Discount factor Y1"], discount_factor_y5: ["Facteur d'actualisation A5", "Discount factor Y5"], capex_y1: ["Capex A1", "Capex Y1"], nwc_y1: ["BFR A1", "NWC Y1"],
+  entry_ev: ["Valeur d'entreprise d'entrée", "Entry enterprise value"], entry_equity: ["Valeur des capitaux propres d'entrée", "Entry equity value"], sources_total: ["Total des sources", "Total sources"], uses_total: ["Total des emplois", "Total uses"], fcf_y1: ["Flux de trésorerie disponible A1", "Free cash flow Y1"], fcf_y2: ["Flux de trésorerie disponible A2", "Free cash flow Y2"], fcf_y3: ["Flux de trésorerie disponible A3", "Free cash flow Y3"], fcf_y4: ["Flux de trésorerie disponible A4", "Free cash flow Y4"], fcf_y5: ["Flux de trésorerie disponible A5", "Free cash flow Y5"],
+  debt_y1: ["Dette A1", "Debt Y1"], debt_y2: ["Dette A2", "Debt Y2"], debt_y3: ["Dette A3", "Debt Y3"], debt_y4: ["Dette A4", "Debt Y4"], debt_y5: ["Dette A5", "Debt Y5"], exit_ev: ["Valeur d'entreprise de sortie", "Exit enterprise value"], exit_equity: ["Valeur des capitaux propres de sortie", "Exit equity value"], mom: ["Multiple de capital investi", "Money-on-money multiple"], irr: ["Taux de rentabilité interne", "Internal rate of return"],
+  sponsor_equity: ["Fonds propres du sponsor", "Sponsor equity"], debt_paydown_y1: ["Remboursement de dette A1", "Debt paydown Y1"], interest_y1: ["Intérêts A1", "Interest Y1"], revolver_draw: ["Tirage de revolver", "Revolver draw"], pik_interest_y1: ["Intérêts PIK A1", "PIK interest Y1"], management_proceeds: ["Produit du management", "Management proceeds"],
+  offer_price: ["Prix d'offre", "Offer price"], purchase_ev: ["Valeur d'acquisition", "Purchase enterprise value"], cash_funding: ["Financement en numéraire", "Cash funding"], debt_funding: ["Financement par dette", "Debt funding"], stock_funding: ["Financement en actions", "Stock funding"], new_shares: ["Nouvelles actions", "New shares"], pro_forma_net_income: ["Résultat net pro forma", "Pro forma net income"], pro_forma_eps: ["Bénéfice par action pro forma", "Pro forma earnings per share"], accretion_dilution_value: ["Accrétion / dilution par action", "Accretion / dilution per share"], accretion_dilution_pct: ["Accrétion / dilution (%)", "Accretion / dilution (%)"],
+  buyer_eps: ["Bénéfice par action de l'acquéreur", "Buyer earnings per share"], synergy_after_tax: ["Synergies après impôt", "After-tax synergies"], fee_after_tax: ["Frais après impôt", "After-tax fees"], purchase_price_allocation: ["Allocation du prix d'acquisition", "Purchase price allocation"], integration_after_tax: ["Coûts d'intégration après impôt", "After-tax integration costs"], pro_forma_eps_y2: ["Bénéfice par action pro forma A2", "Pro forma earnings per share Y2"],
+};
+
 const pairs = [
   ["Accueil", "Home"],
   ["Nouvelle session", "New session"],
@@ -183,6 +194,11 @@ export function setUiLanguage(language) {
 
 export function t(fr, en = fr) {
   return uiLanguage === "en" ? en : fr;
+}
+
+export function caseOutputLabel(id, fallback = id) {
+  const pair = caseOutputLabels[id];
+  return pair ? t(...pair) : fallback;
 }
 
 export function evaluationLabel(mode, translate = t) {

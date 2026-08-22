@@ -8,7 +8,7 @@ import {
   isGuestUser,
   requireAuthorizedAccess,
 } from "./store.js";
-import { evaluationLabel, t } from "./i18n.js";
+import { caseOutputLabel, evaluationLabel, t } from "./i18n.js";
 
 const metrics = document.getElementById("resultsMetrics");
 const resultsList = document.getElementById("resultsList");
@@ -192,7 +192,7 @@ function renderCaseDetail(session) {
   const fields = new Map((statement.answerFields || []).map((field) => [field.id, field]));
   const answers = session.caseData?.answers || {};
   detailPanel.classList.remove("hidden");
-  detailTitle.textContent = `${statement.title || t("Cas pratique", "Practical case")} | ${formatDate(session.completedAt || session.startedAt)}`;
+  detailTitle.textContent = `${caseThemeLabel(statement.theme)} | ${caseDifficultyLabel(statement.difficulty)} | ${formatDate(session.completedAt || session.startedAt)}`;
   detailScore.textContent = `${t("Score global", "Overall score")} ${session.globalScore ?? "--"}%`;
   recorrectButton.classList.add("hidden");
   recorrectButton.disabled = false;
@@ -213,7 +213,7 @@ function renderCaseDetail(session) {
     <section>
       <h3>${t("Réponses détaillées", "Detailed answers")}</h3>
       <div class="table-scroll"><table class="case-table">
-        <thead><tr><th>${t("Sortie", "Output")}</th><th>${t("Votre réponse", "Your answer")}</th><th>${t("Valeur attendue", "Expected value")}</th><th>${t("Points", "Points")}</th><th>${t("Retour", "Feedback")}</th></tr></thead>
+        <thead><tr><th scope="col">${t("Sortie", "Output")}</th><th scope="col">${t("Votre réponse", "Your answer")}</th><th scope="col">${t("Valeur attendue", "Expected value")}</th><th scope="col">${t("Points", "Points")}</th><th scope="col">${t("Retour", "Feedback")}</th></tr></thead>
         <tbody>${(grade.items || []).map((item) => renderCaseItem(item, fields.get(item.id), answers[item.id])).join("")}</tbody>
       </table></div>
     </section>
@@ -225,7 +225,7 @@ function renderCaseDetail(session) {
 function renderCaseItem(item, field, answer) {
   const points = item.credit === 1 ? "100%" : item.credit === .5 ? "50%" : "0%";
   return `<tr>
-    <th>${escapeHtml(field?.label || item.id)}</th>
+    <th scope="row">${escapeHtml(caseOutputLabel(item.id, field?.label || item.id))}</th>
     <td>${escapeHtml(formatCaseValue(answer, field))}</td>
     <td>${escapeHtml(formatCaseValue(item.score, field))}</td>
     <td>${points}</td>
