@@ -11,6 +11,8 @@ const storage = new Map([["interviewplus-server-token", "token"]]);
 let sessions = [];
 let correctionCalls = 0;
 let failRefresh = false;
+let failPostUpsertPersist = false;
+let failNextStatePersist = false;
 
 globalThis.window = globalThis;
 globalThis.XLSX = XLSX;
@@ -19,6 +21,10 @@ globalThis.localStorage = {
     return storage.has(key) ? storage.get(key) : null;
   },
   setItem(key, value) {
+    if (key === "interviewplus-state-v4" && failNextStatePersist) {
+      failNextStatePersist = false;
+      throw new Error("PERSIST_FAILED");
+    }
     storage.set(key, String(value));
   },
   removeItem(key) {
@@ -37,6 +43,7 @@ globalThis.fetch = async (url, options = {}) => {
     correctionCalls += 1;
     const payload = JSON.parse(options.body);
     const score = correctionCalls === 1 ? 88 : 91;
+    if (failPostUpsertPersist && correctionCalls === 2) failNextStatePersist = true;
     return Response.json({
       score,
       mode: "openrouter",
@@ -74,6 +81,7 @@ const completed = await store.finalizeSession();
 assert(completed.questions.every((question) => question.score === 88), "Initial remote correction failed");
 
 failRefresh = true;
+failPostUpsertPersist = true;
 const recorrected = await store.recorrectSession(completed.id);
 assert(recorrected.questions.every((question) => question.score === 91), "Successful remote upsert was treated as a failed recorrection");
 assert((await store.getResultsOverview()).sessions[0].questions.every((question) => question.score === 91), "Remote committed correction was not exposed after refresh failure");

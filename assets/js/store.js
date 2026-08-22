@@ -552,6 +552,8 @@ async function hydrateCurrentUser() {
   if (isRemoteBackendEnabled()) {
     currentUser = await getRemoteCurrentUser();
     remoteSessionsCache = currentUser ? await getUserSessions(currentUser.id) : [];
+    const remoteActiveSession = remoteSessionsCache.find((session) => session.id === state.activeSession?.id && session.status === "review");
+    if (remoteActiveSession) state.activeSession = structuredClone(remoteActiveSession);
     if (!currentUser && state.guestUser) {
       currentUser = sanitizeLocalUser(state.guestUser);
     }
