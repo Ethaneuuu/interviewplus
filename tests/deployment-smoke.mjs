@@ -1,5 +1,7 @@
 import fs from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { deepEqual, equal, ok, rejects } from "node:assert/strict";
+import { promisify } from "node:util";
 
 const schema = await fs.readFile("supabase/schema.sql", "utf8");
 for (const column of ["session_type", "difficulty", "template_id", "case_seed", "case_json", "score_json", "correction_mode", "correction_provider", "correction_model"]) {
@@ -8,6 +10,8 @@ for (const column of ["session_type", "difficulty", "template_id", "case_seed", 
 
 const netlify = await fs.readFile("netlify.toml", "utf8");
 ok(netlify.includes('from = "/api/correct"'));
+ok(netlify.includes('command = "node scripts/build-static.mjs"'));
+ok(netlify.includes('publish = "dist"'));
 ok(netlify.includes('included_files = ["assets/js/xlsx.full.min.js"]'));
 
 const clientConfig = await fs.readFile("assets/js/config.example.js", "utf8");
@@ -72,3 +76,26 @@ const loader = createQuestionBankLoader({
 });
 await rejects(loader(), /PRIVATE_QUESTION_FILE_UNAVAILABLE:404/);
 equal(storageUrl, "https://project.supabase.co/storage/v1/object/interviewplus-private/Questions_InterviewPlus_Bilingual.xlsx");
+
+await fs.rm("dist", { recursive: true, force: true });
+await promisify(execFile)(process.execPath, ["scripts/build-static.mjs"]);
+const manifest = await listFiles("dist");
+const expected = [
+  "auth.html", "case-session.html", "case-setup.html", "index.html", "profile.html", "results.html", "session.html", "setup.html",
+  "assets/css/app.css", "assets/img/interviewplus-logo.svg", "assets/js/backend.js", "assets/js/config.js", "assets/js/store.js", "assets/js/xlsx.full.min.js",
+];
+expected.forEach((file) => ok(manifest.includes(file), `Missing public file ${file}`));
+deepEqual(manifest.filter((file) => file.startsWith("netlify/") || file.startsWith("supabase/") || file.startsWith("tests/") || file.endsWith(".xlsx")), []);
+ok(!manifest.includes("assets/js/config.example.js"));
+ok(!manifest.includes("assets/js/keyword-overrides.js"));
+
+console.log(JSON.stringify({ ok: true, publicFiles: manifest.length }));
+
+async function listFiles(directory, prefix = "") {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(entries.map(async (entry) => {
+    const file = `${prefix}${entry.name}`;
+    return entry.isDirectory() ? listFiles(`${directory}/${entry.name}`, `${file}/`) : [file];
+  }));
+  return files.flat().sort();
+}
