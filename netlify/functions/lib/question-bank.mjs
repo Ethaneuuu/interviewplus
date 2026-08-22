@@ -4,10 +4,18 @@ import { KEYWORD_OVERRIDES } from "../../../assets/js/keyword-overrides.js";
 
 const require = createRequire(import.meta.url);
 const XLSX = require("../../../assets/js/xlsx.full.min.js");
-let questionBankPromise;
 
 export function createQuestionBankLoader({ fetchImpl = fetch, env = process.env, workbookBytes } = {}) {
-  return () => questionBankPromise ||= loadQuestionBank({ fetchImpl, env, workbookBytes });
+  let questionBankPromise;
+  return () => {
+    if (!questionBankPromise) {
+      questionBankPromise = loadQuestionBank({ fetchImpl, env, workbookBytes }).catch((error) => {
+        questionBankPromise = undefined;
+        throw error;
+      });
+    }
+    return questionBankPromise;
+  };
 }
 
 async function loadQuestionBank({ fetchImpl, env, workbookBytes }) {
