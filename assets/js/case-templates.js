@@ -47,20 +47,24 @@ function publicInputs(theme, difficulty, random) {
   const n = (min, max) => integer(random, min, max);
   const p = (min, max, step = 0.005) => decimal(random, min, max, step);
   if (theme === "dcf") {
-    const data = { revenue: n(900, 1500), growth: p(.04, .10), ebitda_margin: p(.18, .30), da_pct: p(.02, .05), capex_pct: p(.03, .07), nwc_pct: p(.08, .16), tax_rate: .25, wacc: p(.08, .12), terminal_growth: p(.02, .035), debt: n(100, 350), cash: n(30, 130), shares: n(70, 160) };
+    const data = { revenue: n(900, 1500), growth: p(.04, .10), ebitda_margin: p(.18, .30), da_pct: p(.02, .05), capex_pct: p(.03, .07), nwc_pct: p(.08, .16), tax_rate: .25, terminal_growth: p(.02, .035), debt: n(100, 350), cash: n(30, 130), shares: n(70, 160) };
+    if (difficulty === "easy") data.wacc = p(.08, .12);
     if (difficulty !== "easy") Object.assign(data, { risk_free_rate: p(.025, .04), beta: decimal(random, .8, 1.4, .1), equity_risk_premium: p(.045, .065), cost_of_debt: p(.04, .07), target_debt_pct: p(.25, .45) });
-    if (difficulty === "advanced") Object.assign(data, { segment_a_revenue: n(450, 800), segment_b_revenue: n(300, 650), base_case_probability: p(.45, .65), upside_growth: p(.01, .03), comparable_beta: decimal(random, .9, 1.5, .1), stub_year_fraction: .5, mid_year_convention: 1 });
+    if (difficulty === "advanced") {
+      const segmentA = n(450, 800); const segmentB = n(300, 650);
+      Object.assign(data, { revenue: segmentA + segmentB, segment_a_revenue: segmentA, segment_b_revenue: segmentB, base_case_probability: p(.45, .65), upside_growth: p(.01, .03), comparable_beta: decimal(random, .9, 1.5, .1), stub_year_fraction: .5, mid_year_convention: 1 });
+    }
     return data;
   }
   if (theme === "lbo") {
-    const data = { ebitda: n(180, 320), entry_multiple: decimal(random, 8, 11, .5), exit_multiple: decimal(random, 8, 11, .5), existing_debt: n(100, 250), cash: n(20, 80), debt: n(700, 1200), fcf_margin: p(.28, .42), ebitda_growth: p(.04, .10), fees: n(15, 35), min_cash: 0, management_pool: 0, pik_rate: 0, rollover: 0 };
-    if (difficulty !== "easy") Object.assign(data, { senior_debt: n(450, 750), junior_debt: n(100, 300), min_cash: n(20, 50), nol: n(20, 90), management_pool: p(.06, .12), revolver_limit: n(50, 150) });
+    const data = { ebitda: n(180, 320), entry_multiple: decimal(random, 8, 11, .5), exit_multiple: decimal(random, 8, 11, .5), existing_debt: n(100, 250), cash: n(20, 80), debt: n(500, 800), fcf_margin: p(.36, .50), ebitda_growth: p(.04, .10), fees: n(15, 35), min_cash: 0, management_pool: 0, pik_rate: 0, rollover: 0 };
+    if (difficulty !== "easy") Object.assign(data, { senior_debt: n(300, 500), junior_debt: n(50, 150), min_cash: n(20, 50), nol: n(20, 90), management_pool: p(.06, .12), revolver_limit: n(50, 150) });
     if (difficulty === "advanced") Object.assign(data, { revenue_growth: p(.04, .10), margin_expansion: p(.005, .02), ppa_step_up: n(20, 80), earnout: n(10, 60), rollover: n(30, 120), pik_rate: p(.08, .12), cash_sweep: p(.60, .90), call_premium: p(.01, .04) });
     return data;
   }
   const data = { buyer_share_price: n(45, 95), buyer_shares: n(300, 650), buyer_net_income: n(650, 1200), target_share_price: n(18, 50), target_shares: n(90, 240), target_net_income: n(100, 350), target_debt: n(80, 300), target_cash: n(20, 100), premium: p(.20, .40), cash_mix: p(.25, .55), debt_mix: p(.10, .35), tax_rate: .25, synergies: n(30, 120), fees: n(15, 55) };
-  if (difficulty !== "easy") Object.assign(data, { minimum_cash: n(100, 250), debt_rate: p(.045, .075), ppa_step_up: n(20, 100), stock_mix_floor: p(.15, .35), transaction_costs: n(10, 35) });
-  if (difficulty === "advanced") Object.assign(data, { buyer_growth: p(.03, .08), target_growth: p(.04, .10), max_leverage: decimal(random, 3, 5, .25), dtl: n(10, 60), write_offs: n(10, 45), synergy_year1_pct: p(.35, .65), integration_costs: n(20, 90), buyer_cash: n(250, 600) });
+  if (difficulty !== "easy") { const minimumCash = n(100, 250); Object.assign(data, { minimum_cash: minimumCash, buyer_cash: minimumCash + n(100, 450), debt_rate: p(.045, .075), cash_yield: p(.02, .04), ppa_step_up: n(20, 100), stock_mix_floor: p(.15, .35), transaction_costs: n(10, 35) }); }
+  if (difficulty === "advanced") Object.assign(data, { buyer_growth: p(.03, .08), target_growth: p(.04, .10), buyer_ebitda: Math.round(data.buyer_net_income * decimal(random, 1.45, 1.8, .05)), buyer_debt: n(300, 900), max_leverage: decimal(random, 3, 5, .25), dtl: n(10, 60), write_offs: n(10, 45), synergy_year1_pct: p(.35, .65), integration_costs: n(20, 90) });
   return data;
 }
 
@@ -68,11 +72,15 @@ function answerField(id, category, weight) {
   const percent = id === "irr" || id.endsWith("_pct");
   const perShare = id.includes("share_price") || id.includes("offer_price") || id.endsWith("_eps") || id.includes("accretion_dilution_value");
   const multiple = id === "mom";
-  return { id, label: id.replaceAll("_", " ").toUpperCase(), category, weight, format: percent ? "percent" : multiple ? "multiple" : perShare ? "per-share" : "money", tolerance: percent ? .0025 : multiple ? .025 : perShare ? .05 : 1 };
+  const number = id === "new_shares" || id.startsWith("discount_factor");
+  return { id, label: id.replaceAll("_", " ").toUpperCase(), category, weight, format: percent ? "percent" : multiple ? "multiple" : perShare ? "per-share" : number ? "number" : "money", tolerance: percent ? .0025 : multiple ? .025 : perShare ? .05 : number ? .0001 : 1 };
 }
 
 function inputField(id, value) {
-  return { id, label: id.replaceAll("_", " ").toUpperCase(), value, format: id.includes("rate") || id.includes("margin") || id.includes("growth") || id.includes("pct") || id.includes("mix") || id.includes("premium") || id.includes("pool") || id.includes("probability") || id.includes("sweep") ? "percent" : id.includes("multiple") || id === "beta" || id.includes("leverage") ? "multiple" : "money" };
+  const percent = id.includes("rate") || id.includes("margin") || id.includes("growth") || id.includes("pct") || id.includes("mix") || id.includes("premium") || id.includes("pool") || id.includes("probability") || id.includes("sweep") || id === "cash_yield";
+  const multiple = id.includes("multiple") || id === "beta" || id === "comparable_beta" || id.includes("leverage");
+  const number = id.includes("shares") || id === "stub_year_fraction" || id === "mid_year_convention";
+  return { id, label: id.replaceAll("_", " ").toUpperCase(), value, format: percent ? "percent" : multiple ? "multiple" : number ? "number" : "money" };
 }
 
 function title(theme) { return ({ dcf: "DCF valuation", lbo: "LBO model", "merger-model": "Merger model" })[theme]; }
