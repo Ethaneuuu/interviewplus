@@ -1,5 +1,7 @@
 import { deepEqual, equal, rejects } from "node:assert/strict";
 import { createCorrectionService } from "../netlify/functions/lib/correction-service.mjs";
+import { generateCaseStatement } from "../assets/js/case-templates.js";
+import { calculateCaseSolution, gradeCase } from "../netlify/functions/lib/case-grader.mjs";
 
 const bank = new Map([["fr:1", {
   key: "fr:1",
@@ -105,5 +107,38 @@ const invalidConceptService = createCorrectionService({
 });
 await rejects(() => invalidConceptService.correct(payload), /OPENROUTER_UNAVAILABLE/);
 equal(invalidConceptCalls.join(","), "openai/gpt-oss-120b:free,openai/gpt-oss-120b");
+
+const caseStatement = generateCaseStatement({ theme: "merger-model", difficulty: "advanced", seed: 7 });
+const casePayload = {
+  type: "case",
+  theme: "merger-model",
+  difficulty: "advanced",
+  seed: 7,
+  answers: calculateCaseSolution(caseStatement),
+  recommendation: "Proceed: accretion and synergies support the transaction within the leverage limit.",
+};
+const narrativeService = createCorrectionService({
+  fetchImpl: async () => Response.json({ choices: [{ message: { content: JSON.stringify({ score: 100, feedback: "Well supported." }) } }] }),
+  questionBankLoader: async () => bank,
+  env,
+});
+const narrativeResult = await narrativeService.correct(casePayload);
+const numericOnly = gradeCase({ ...casePayload, answers: { ...casePayload.answers, recommendation: casePayload.recommendation } });
+equal(narrativeResult.mode, "openrouter");
+equal(narrativeResult.breakdown.justification, 100);
+equal(narrativeResult.score - numericOnly.score, 5);
+
+const unavailableResult = await createCorrectionService({
+  fetchImpl: async () => new Response("unavailable", { status: 503 }),
+  questionBankLoader: async () => bank,
+  env,
+}).correct(casePayload);
+equal(unavailableResult.mode, "deterministic");
+equal(unavailableResult.narrativeStatus, "unavailable");
+equal(unavailableResult.breakdown.justification, 0);
+
+await rejects(() => narrativeService.correct({ ...casePayload, seed: -1 }), /INVALID_CASE_SEED/);
+await rejects(() => narrativeService.correct({ ...casePayload, answers: { unknown_output: 1 } }), /INVALID_CASE_ANSWER/);
+await rejects(() => narrativeService.correct({ ...casePayload, recommendation: "x".repeat(2001) }), /INVALID_CASE_RECOMMENDATION/);
 
 console.log(JSON.stringify({ ok: true, fallback: "free-to-paid", validation: "ok" }));

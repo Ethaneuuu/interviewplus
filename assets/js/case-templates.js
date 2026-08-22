@@ -1,0 +1,83 @@
+export const CASE_THEMES = ["dcf", "lbo", "merger-model"];
+export const CASE_DIFFICULTIES = ["easy", "intermediate", "advanced"];
+
+export const CORE_OUTPUTS = {
+  dcf: ["ufcf_y1", "ufcf_y2", "ufcf_y3", "ufcf_y4", "ufcf_y5", "pv_ufcf", "terminal_value", "enterprise_value", "equity_value", "share_price", "sensitivity_low", "sensitivity_high"],
+  lbo: ["entry_ev", "entry_equity", "sources_total", "uses_total", "fcf_y1", "fcf_y2", "fcf_y3", "fcf_y4", "fcf_y5", "debt_y1", "debt_y2", "debt_y3", "debt_y4", "debt_y5", "exit_ev", "exit_equity", "mom", "irr", "sensitivity_low", "sensitivity_high"],
+  "merger-model": ["offer_price", "purchase_ev", "cash_funding", "debt_funding", "stock_funding", "new_shares", "pro_forma_net_income", "pro_forma_eps", "accretion_dilution_value", "accretion_dilution_pct"],
+};
+
+const METHOD_OUTPUTS = {
+  dcf: [["ebitda_y1", "discount_factor_y1"], ["ebitda_y1", "discount_factor_y1", "ebitda_y2", "capex_y1"], ["ebitda_y1", "discount_factor_y1", "ebitda_y2", "capex_y1", "ebitda_y3", "nwc_y1", "discount_factor_y5"]],
+  lbo: [["sponsor_equity", "debt_paydown_y1"], ["sponsor_equity", "debt_paydown_y1", "interest_y1", "revolver_draw"], ["sponsor_equity", "debt_paydown_y1", "interest_y1", "revolver_draw", "pik_interest_y1", "management_proceeds"]],
+  "merger-model": [["buyer_eps", "synergy_after_tax"], ["buyer_eps", "synergy_after_tax", "fee_after_tax", "purchase_price_allocation"], ["buyer_eps", "synergy_after_tax", "fee_after_tax", "purchase_price_allocation", "integration_after_tax", "pro_forma_eps_y2"]],
+};
+
+export function generateCaseStatement({ theme, difficulty, seed }) {
+  if (!CASE_THEMES.includes(theme)) throw new Error("INVALID_CASE_THEME");
+  if (!CASE_DIFFICULTIES.includes(difficulty)) throw new Error("INVALID_CASE_DIFFICULTY");
+  if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) throw new Error("INVALID_CASE_SEED");
+  const random = mulberry32(seed ^ hash(`${theme}:${difficulty}`));
+  const data = publicInputs(theme, difficulty, random);
+  const index = CASE_DIFFICULTIES.indexOf(difficulty);
+  const coreOutputIds = CORE_OUTPUTS[theme];
+  const methodOutputIds = METHOD_OUTPUTS[theme][index];
+  const answerFields = [
+    ...coreOutputIds.map((id) => answerField(id, "results", 1 / coreOutputIds.length)),
+    ...methodOutputIds.map((id) => answerField(id, "method", 1 / methodOutputIds.length)),
+  ];
+  return {
+    templateId: `${theme}-${difficulty}-v1`,
+    theme,
+    difficulty,
+    seed,
+    title: `${title(theme)} — ${difficulty}`,
+    durationOptions: [30, 45, 60],
+    instructions: instructions(theme, difficulty),
+    sections: [{ id: "inputs", title: "Inputs (USD millions, except per-share data)", fields: Object.entries(data).map(([id, value]) => inputField(id, value)) }],
+    answerFields,
+    coreOutputIds,
+    recommendation: theme === "merger-model" && difficulty === "advanced" ? {
+      rubric: "Assess whether the recommendation follows the stated EPS accretion/dilution, leverage constraints, synergies, and integration costs. Return JSON with score (0-100) and concise feedback.",
+    } : null,
+  };
+}
+
+function publicInputs(theme, difficulty, random) {
+  const n = (min, max) => integer(random, min, max);
+  const p = (min, max, step = 0.005) => decimal(random, min, max, step);
+  if (theme === "dcf") {
+    const data = { revenue: n(900, 1500), growth: p(.04, .10), ebitda_margin: p(.18, .30), da_pct: p(.02, .05), capex_pct: p(.03, .07), nwc_pct: p(.08, .16), tax_rate: .25, wacc: p(.08, .12), terminal_growth: p(.02, .035), debt: n(100, 350), cash: n(30, 130), shares: n(70, 160) };
+    if (difficulty !== "easy") Object.assign(data, { risk_free_rate: p(.025, .04), beta: decimal(random, .8, 1.4, .1), equity_risk_premium: p(.045, .065), cost_of_debt: p(.04, .07), target_debt_pct: p(.25, .45) });
+    if (difficulty === "advanced") Object.assign(data, { segment_a_revenue: n(450, 800), segment_b_revenue: n(300, 650), base_case_probability: p(.45, .65), upside_growth: p(.01, .03), comparable_beta: decimal(random, .9, 1.5, .1), stub_year_fraction: .5, mid_year_convention: 1 });
+    return data;
+  }
+  if (theme === "lbo") {
+    const data = { ebitda: n(180, 320), entry_multiple: decimal(random, 8, 11, .5), exit_multiple: decimal(random, 8, 11, .5), existing_debt: n(100, 250), cash: n(20, 80), debt: n(700, 1200), fcf_margin: p(.28, .42), ebitda_growth: p(.04, .10), fees: n(15, 35), min_cash: 0, management_pool: 0, pik_rate: 0, rollover: 0 };
+    if (difficulty !== "easy") Object.assign(data, { senior_debt: n(450, 750), junior_debt: n(100, 300), min_cash: n(20, 50), nol: n(20, 90), management_pool: p(.06, .12), revolver_limit: n(50, 150) });
+    if (difficulty === "advanced") Object.assign(data, { revenue_growth: p(.04, .10), margin_expansion: p(.005, .02), ppa_step_up: n(20, 80), earnout: n(10, 60), rollover: n(30, 120), pik_rate: p(.08, .12), cash_sweep: p(.60, .90), call_premium: p(.01, .04) });
+    return data;
+  }
+  const data = { buyer_share_price: n(45, 95), buyer_shares: n(300, 650), buyer_net_income: n(650, 1200), target_share_price: n(18, 50), target_shares: n(90, 240), target_net_income: n(100, 350), target_debt: n(80, 300), target_cash: n(20, 100), premium: p(.20, .40), cash_mix: p(.25, .55), debt_mix: p(.10, .35), tax_rate: .25, synergies: n(30, 120), fees: n(15, 55) };
+  if (difficulty !== "easy") Object.assign(data, { minimum_cash: n(100, 250), debt_rate: p(.045, .075), ppa_step_up: n(20, 100), stock_mix_floor: p(.15, .35), transaction_costs: n(10, 35) });
+  if (difficulty === "advanced") Object.assign(data, { buyer_growth: p(.03, .08), target_growth: p(.04, .10), max_leverage: decimal(random, 3, 5, .25), dtl: n(10, 60), write_offs: n(10, 45), synergy_year1_pct: p(.35, .65), integration_costs: n(20, 90), buyer_cash: n(250, 600) });
+  return data;
+}
+
+function answerField(id, category, weight) {
+  const percent = id === "irr" || id.endsWith("_pct");
+  const perShare = id.includes("share_price") || id.includes("offer_price") || id.endsWith("_eps") || id.includes("accretion_dilution_value");
+  const multiple = id === "mom";
+  return { id, label: id.replaceAll("_", " ").toUpperCase(), category, weight, format: percent ? "percent" : multiple ? "multiple" : perShare ? "per-share" : "money", tolerance: percent ? .0025 : multiple ? .025 : perShare ? .05 : 1 };
+}
+
+function inputField(id, value) {
+  return { id, label: id.replaceAll("_", " ").toUpperCase(), value, format: id.includes("rate") || id.includes("margin") || id.includes("growth") || id.includes("pct") || id.includes("mix") || id.includes("premium") || id.includes("pool") || id.includes("probability") || id.includes("sweep") ? "percent" : id.includes("multiple") || id === "beta" || id.includes("leverage") ? "multiple" : "money" };
+}
+
+function title(theme) { return ({ dcf: "DCF valuation", lbo: "LBO model", "merger-model": "Merger model" })[theme]; }
+function instructions(theme, difficulty) { return `Complete the ${title(theme).toLowerCase()} using the stated USD million inputs. ${difficulty === "advanced" ? "Apply the additional scenario and transaction conditions." : difficulty === "intermediate" ? "Show the supporting method outputs." : "Calculate the requested outputs."}`; }
+function mulberry32(seed) { return () => { let t = seed += 0x6d2b79f5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function integer(random, min, max) { return Math.floor(random() * (max - min + 1)) + min; }
+function decimal(random, min, max, step) { return Math.round((min + Math.round(random() * (max - min) / step) * step) * 10000) / 10000; }
+function hash(value) { return [...value].reduce((sum, char) => Math.imul(sum ^ char.charCodeAt(0), 16777619), 2166136261) >>> 0; }
