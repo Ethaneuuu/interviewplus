@@ -15,7 +15,7 @@ Netlify Function `correct` ───────────┤
   └─ case : corrigé numérique déterministe, OpenRouter seulement pour la recommandation
 ```
 
-Le navigateur ne reçoit ni `OPENROUTER_API_KEY`, ni `SUPABASE_SERVICE_ROLE_KEY`, ni le corrigé numérique intégral du cas. Il persiste une réponse avant tout appel réseau : un échec laisse un brouillon réessayable. Le seul endpoint applicatif public de cette version est `POST /api/correct`.
+Le navigateur ne reçoit ni `OPENROUTER_API_KEY`, ni `SUPABASE_SERVICE_ROLE_KEY`, ni le corrigé numérique intégral du cas **avant soumission**. Il persiste une réponse avant tout appel réseau : un échec laisse un brouillon réessayable. Après correction, la réponse de cas retourne les valeurs attendues, crédits et tolérances des champs demandés ; le navigateur les enregistre et les affiche pour l'entraînement. Le seul endpoint applicatif public de cette version est `POST /api/correct`.
 
 ## Stack et carte des fichiers
 
@@ -113,7 +113,7 @@ node tests/restricted-access-smoke.mjs
 git diff --check
 ```
 
-`OPENROUTER_UNAVAILABLE` signifie que les deux appels modèle ont échoué ; vérifiez clé, crédits et limites avant de réessayer. `PRIVATE_QUESTION_FILE_UNAVAILABLE:<status>` signifie que la Function ne lit pas le classeur privé ; vérifiez variables, bucket, chemin et clé de service. Les erreurs `QUESTION_BANK_*` signalent une feuille absente, une réponse vide, un doublon ou un compte autre que 3 482. Les erreurs `INVALID_CASE_*` et `INVALID_CORRECTION_*` sont des contrats client à corriger, pas des erreurs à masquer.
+`OPENROUTER_UNAVAILABLE` signifie que les deux appels modèle ont échoué ; vérifiez clé, crédits et limites avant de réessayer. Les erreurs `INVALID_CASE_*` et `INVALID_CORRECTION_*` sont des contrats client à corriger, pas des erreurs à masquer. Les diagnostics internes ne sont pas exposés par l'API : la Function écrit uniquement `INTERVIEWPLUS_CORRECTION_ERROR` suivi d'un code stable dans les **Netlify Function logs**. `PRIVATE_QUESTION_FILE_UNAVAILABLE` indique un classeur privé inaccessible ; `QUESTION_BANK_ERROR` indique une feuille absente, une réponse vide, un doublon ou un compte autre que 3 482 ; `CORRECTION_INTERNAL_ERROR` couvre les autres erreurs. Ces logs ne contiennent ni prompt, ni réponse candidat, ni référence, ni clé.
 
 ## Netlify
 
@@ -159,7 +159,7 @@ node -e "const fs=require('node:fs'); import('./netlify/functions/lib/question-b
 
 ## Créer un template
 
-Ajouter un quatrième thème est une modification de code, pas un éditeur UI : ajouter le thème dans `CASE_THEMES`, ses sorties principales dans `CORE_OUTPUTS`, ses sorties de méthode par niveau dans `METHOD_OUTPUTS`, ses entrées réalistes dans `publicInputs`, puis sa formule dans `case-grader.mjs`. Conserver un seul template versionné par thème/niveau (`<theme>-<difficulty>-v1`), les mêmes `coreOutputIds` entre niveaux, et des modules intermédiaires croissants. La graine doit toujours produire la même instance ; les données doivent respecter les contraintes financières avant affichage. Chaque champ précise poids, format et tolérance absolue ou relative : une valeur dans la tolérance reçoit tout le crédit, à 1,5× elle reçoit un demi-crédit. Ajouter les libellés i18n et les smoke tests de reproductibilité, contraintes, crédit intermédiaire et parcours.
+Ajouter un quatrième thème est une modification de code, pas un éditeur UI : ajouter le thème dans `CASE_THEMES`, ses sorties principales dans `CORE_OUTPUTS`, ses sorties de méthode par niveau dans `METHOD_OUTPUTS`, ses entrées réalistes dans `publicInputs`, puis sa formule dans `case-grader.mjs`. Conserver un seul template versionné par thème/niveau (`<theme>-<difficulty>-v1`), les mêmes `coreOutputIds` entre niveaux, et des modules intermédiaires croissants. La graine doit toujours produire la même instance ; les données doivent respecter les contraintes financières avant affichage. Chaque champ précise poids, format et une tolérance **absolue** : une valeur dans la tolérance reçoit tout le crédit ; au-delà et jusqu'à `2 × tolerance`, elle reçoit un demi-crédit. Les tolérances relatives exigent un type explicite et une branche de calcul avant d'être documentées ou utilisées. Ajouter les libellés i18n et les smoke tests de reproductibilité, contraintes, crédit intermédiaire et parcours.
 
 ## OpenRouter — Coûts et quotas
 

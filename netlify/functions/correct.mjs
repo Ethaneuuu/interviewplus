@@ -20,8 +20,15 @@ export async function handler(event) {
     const code = String(error?.message || "CORRECTION_UNAVAILABLE");
     if (code === "OPENROUTER_UNAVAILABLE") return reply(502, { error: code });
     if (isValidationError(code)) return reply(400, { error: code });
+    console.error("INTERVIEWPLUS_CORRECTION_ERROR", safeErrorCode(code));
     return reply(500, { error: "INTERNAL_ERROR" });
   }
+}
+
+function safeErrorCode(code) {
+  if (code.startsWith("PRIVATE_QUESTION_FILE_UNAVAILABLE:")) return "PRIVATE_QUESTION_FILE_UNAVAILABLE";
+  if (code.startsWith("QUESTION_BANK_")) return "QUESTION_BANK_ERROR";
+  return "CORRECTION_INTERNAL_ERROR";
 }
 
 function isValidationError(code) {

@@ -10,12 +10,20 @@ const malformed = await handler({ httpMethod: "POST", body: "{" });
 equal(malformed.statusCode, 400);
 deepEqual(JSON.parse(malformed.body), { error: "INVALID_JSON" });
 
-const unexpected = await handler({
-  httpMethod: "POST",
-  body: JSON.stringify({ type: "questions", items: [{ questionId: "1", language: "fr", answer: "x" }] }),
-});
-equal(unexpected.statusCode, 500);
-deepEqual(JSON.parse(unexpected.body), { error: "INTERNAL_ERROR" });
+const logged = [];
+const originalError = console.error;
+console.error = (...args) => logged.push(args);
+try {
+  const unexpected = await handler({
+    httpMethod: "POST",
+    body: JSON.stringify({ type: "questions", items: [{ questionId: "1", language: "fr", answer: "x" }] }),
+  });
+  equal(unexpected.statusCode, 500);
+  deepEqual(JSON.parse(unexpected.body), { error: "INTERNAL_ERROR" });
+} finally {
+  console.error = originalError;
+}
+deepEqual(logged, [["INTERVIEWPLUS_CORRECTION_ERROR", "CORRECTION_INTERNAL_ERROR"]]);
 
 const invalidCases = [
   { type: "case", theme: "dcf", difficulty: "easy", seed: -1, answers: {} },

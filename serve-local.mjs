@@ -51,7 +51,7 @@ const server = http.createServer(async (request, response) => {
 
     await serveStaticFile(response, url.pathname);
   } catch (error) {
-    json(response, 500, { error: "SERVER_ERROR", details: error.message });
+    json(response, 500, { error: "INTERNAL_ERROR" });
   }
 });
 
@@ -62,9 +62,21 @@ server.listen(port, "127.0.0.1", () => {
 
 async function handleApiRoute(request, response, pathname) {
   const method = request.method || "GET";
-  const body = method === "GET" ? null : await readJsonBody(request);
 
-  if (method === "POST" && pathname === "/api/correct") {
+  if (pathname === "/api/correct") {
+    if (method !== "POST") {
+      json(response, 405, { error: "METHOD_NOT_ALLOWED" });
+      return;
+    }
+
+    let body;
+    try {
+      body = await readJsonBody(request);
+    } catch (error) {
+      json(response, String(error?.message) === "INVALID_JSON" ? 400 : 500, { error: String(error?.message) === "INVALID_JSON" ? "INVALID_JSON" : "INTERNAL_ERROR" });
+      return;
+    }
+
     const [{ createQuestionBankLoader }, { createCorrectionService }] = await Promise.all([
       import("./netlify/functions/lib/question-bank.mjs"),
       import("./netlify/functions/lib/correction-service.mjs"),
@@ -81,6 +93,8 @@ async function handleApiRoute(request, response, pathname) {
     }
     return;
   }
+
+  const body = method === "GET" ? null : await readJsonBody(request);
 
   const db = await readDatabase();
 
@@ -276,7 +290,7 @@ async function readJsonBody(request) {
   try {
     return JSON.parse(raw);
   } catch {
-    return null;
+    throw new Error("INVALID_JSON");
   }
 }
 
