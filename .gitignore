@@ -2,6 +2,7 @@ data/interviewplus-db.json
 .interviewplus-local.env
 .DS_Store
 node_modules/
+.worktrees/
 Nouveau site/
 *.xlsx
 *.log
