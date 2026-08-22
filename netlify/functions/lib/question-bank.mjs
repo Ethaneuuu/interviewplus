@@ -32,8 +32,8 @@ async function loadQuestionBank({ fetchImpl, env, workbookBytes }) {
 
 async function fetchWorkbook(fetchImpl, env) {
   const baseUrl = String(env.SUPABASE_URL || "").replace(/\/+$/, "");
-  const bucket = env.PRIVATE_QUESTION_BUCKET;
-  const objectPath = env.PRIVATE_QUESTION_PATH;
+  const bucket = env.PRIVATE_QUESTION_BUCKET || "interviewplus-private";
+  const objectPath = env.PRIVATE_QUESTION_PATH || "Questions_InterviewPlus_Bilingual.xlsx";
   const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
   const response = await fetchImpl(`${baseUrl}/storage/v1/object/${bucket}/${objectPath}`, {
     headers: {

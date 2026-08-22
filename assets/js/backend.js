@@ -322,6 +322,8 @@ function clearServerToken() {
 }
 
 export function toRemoteSessionRow(session) {
+  const isCase = session.sessionType === "case";
+  const { grade, ...caseJson } = isCase && session.caseData && typeof session.caseData === "object" ? session.caseData : {};
   return {
     id: session.id,
     user_id: session.userId,
@@ -329,7 +331,16 @@ export function toRemoteSessionRow(session) {
     question_count: session.config.questionCount,
     timer_minutes: session.config.timerMinutes,
     global_score: session.globalScore,
-    questions_json: session.questions,
+    session_type: isCase ? "case" : "questions",
+    difficulty: session.config.difficulty || null,
+    template_id: isCase ? caseJson.templateId || null : null,
+    case_seed: isCase ? caseJson.seed ?? null : null,
+    case_json: isCase ? caseJson : null,
+    score_json: isCase && grade ? grade : {},
+    correction_mode: session.correctionMode || null,
+    correction_provider: session.correctionProvider || null,
+    correction_model: session.correctionModel || null,
+    questions_json: isCase ? [] : session.questions,
     session_json: structuredClone(session),
     started_at: session.startedAt,
     completed_at: session.completedAt,
@@ -340,20 +351,37 @@ export function mapRemoteSession(row) {
   if (row.session_json && typeof row.session_json === "object" && !Array.isArray(row.session_json)) {
     return structuredClone(row.session_json);
   }
+  const isCase = row.session_type === "case";
+  const caseJson = row.case_json && typeof row.case_json === "object" && !Array.isArray(row.case_json) ? row.case_json : {};
+  const scoreJson = row.score_json && typeof row.score_json === "object" && !Array.isArray(row.score_json) ? row.score_json : {};
   return {
     id: row.id,
     userId: row.user_id,
-    sourceLabel: "Questions_InterviewPlus.xlsx",
+    sourceLabel: isCase ? "Cas pratiques" : "Questions_InterviewPlus.xlsx",
+    sessionType: isCase ? "case" : "questions",
     status: "review",
     startedAt: row.started_at,
     completedAt: row.completed_at,
     currentIndex: 0,
     globalScore: row.global_score,
+    correctionMode: row.correction_mode || null,
+    correctionProvider: row.correction_provider || null,
+    correctionModel: row.correction_model || null,
     config: {
       theme: row.theme,
+      ...(row.difficulty ? { difficulty: row.difficulty } : {}),
       questionCount: row.question_count,
       timerMinutes: row.timer_minutes,
     },
-    questions: Array.isArray(row.questions_json) ? row.questions_json : [],
+    questions: isCase ? [] : (Array.isArray(row.questions_json) ? row.questions_json : []),
+    ...(isCase ? {
+      caseData: {
+        ...caseJson,
+        templateId: row.template_id || caseJson.templateId,
+        difficulty: row.difficulty || caseJson.difficulty,
+        seed: row.case_seed ?? caseJson.seed,
+        grade: Object.keys(scoreJson).length ? scoreJson : (caseJson.grade || null),
+      },
+    } : {}),
   };
 }

@@ -38,6 +38,13 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+for (const file of ["config.js", "config.example.js"]) {
+  const clientConfig = await fs.readFile(path.join(projectRoot, "assets/js", file), "utf8");
+  assert(!clientConfig.includes("OPENROUTER_API_KEY"), `${file} exposes the OpenRouter key name`);
+  assert(!clientConfig.includes("SUPABASE_SERVICE_ROLE_KEY"), `${file} exposes the Supabase service-role key name`);
+  assert(!/sk-or-[A-Za-z0-9]/.test(clientConfig), `${file} exposes an OpenRouter key`);
+}
+
 async function expectError(action, expectedMessage) {
   try {
     await action();

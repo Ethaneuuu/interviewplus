@@ -103,6 +103,19 @@ create table if not exists public.session_runs (
 );
 
 alter table public.session_runs
+  add column if not exists session_type text not null default 'questions'
+    check (session_type in ('questions', 'case')),
+  add column if not exists difficulty text
+    check (difficulty is null or difficulty in ('easy', 'intermediate', 'advanced')),
+  add column if not exists template_id text,
+  add column if not exists case_seed bigint,
+  add column if not exists case_json jsonb,
+  add column if not exists score_json jsonb not null default '{}'::jsonb,
+  add column if not exists correction_mode text,
+  add column if not exists correction_provider text,
+  add column if not exists correction_model text;
+
+alter table public.session_runs
   add column if not exists session_json jsonb;
 
 alter table public.session_runs
