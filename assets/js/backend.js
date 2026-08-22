@@ -261,17 +261,7 @@ export async function upsertRemoteSession(session) {
     return null;
   }
 
-  const payload = {
-    id: session.id,
-    user_id: session.userId,
-    theme: session.config.theme,
-    question_count: session.config.questionCount,
-    timer_minutes: session.config.timerMinutes,
-    global_score: session.globalScore,
-    questions_json: session.questions,
-    started_at: session.startedAt,
-    completed_at: session.completedAt,
-  };
+  const payload = toRemoteSessionRow(session);
 
   const { data, error } = await supabase
     .from("session_runs")
@@ -331,7 +321,25 @@ function clearServerToken() {
   localStorage.removeItem(SERVER_TOKEN_KEY);
 }
 
-function mapRemoteSession(row) {
+export function toRemoteSessionRow(session) {
+  return {
+    id: session.id,
+    user_id: session.userId,
+    theme: session.config.theme,
+    question_count: session.config.questionCount,
+    timer_minutes: session.config.timerMinutes,
+    global_score: session.globalScore,
+    questions_json: session.questions,
+    session_json: structuredClone(session),
+    started_at: session.startedAt,
+    completed_at: session.completedAt,
+  };
+}
+
+export function mapRemoteSession(row) {
+  if (row.session_json && typeof row.session_json === "object" && !Array.isArray(row.session_json)) {
+    return structuredClone(row.session_json);
+  }
   return {
     id: row.id,
     userId: row.user_id,

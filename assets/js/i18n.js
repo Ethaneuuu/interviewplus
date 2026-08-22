@@ -141,6 +141,13 @@ const pairs = [
   ["Calculs", "Calculations"],
   ["Recommandation", "Recommendation"],
   ["Valider et recevoir la correction", "Submit and get feedback"],
+  ["Cas pratique", "Practical case"],
+  ["Résultats du cas", "Case results"],
+  ["Réussi", "Passed"],
+  ["À retravailler", "To revisit"],
+  ["Résultats", "Results"],
+  ["Méthode", "Method"],
+  ["Justification", "Justification"],
 ];
 
 const lookup = new Map();

@@ -102,6 +102,12 @@ create table if not exists public.session_runs (
   created_at timestamptz not null default now()
 );
 
+alter table public.session_runs
+  add column if not exists session_json jsonb;
+
+alter table public.session_runs
+  alter column global_score type numeric;
+
 create index if not exists session_runs_user_created_idx
   on public.session_runs (user_id, created_at desc);
 

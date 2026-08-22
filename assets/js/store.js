@@ -155,7 +155,11 @@ export async function initializeApp() {
   if (!isRestrictedAccess() || currentUser) {
     await ensureDatasetLoaded();
   }
-  await syncActiveSession();
+  try {
+    await syncActiveSession();
+  } catch {
+    // A timed session remains a saved draft when automatic correction is unavailable.
+  }
   return {
     currentUser: getCurrentUser(),
     datasetMeta: getDatasetMeta(),
@@ -519,20 +523,29 @@ export async function finalizeCaseSession() {
     answers: numericAnswers,
     ...(statement.recommendation ? { recommendation: answers.recommendation || "" } : {}),
   });
-  session.caseData.grade = result;
-  session.globalScore = result.score;
-  session.correctionMode = result.mode || "deterministic";
-  session.correctionProvider = result.provider || null;
-  session.correctionModel = result.model || null;
-  session.status = "review";
-  session.completedAt = new Date().toISOString();
+  const completed = structuredClone(session);
+  completed.caseData.grade = result;
+  completed.globalScore = result.score;
+  completed.correctionMode = result.mode || "deterministic";
+  completed.correctionProvider = result.provider || null;
+  completed.correctionModel = result.model || null;
+  completed.status = "review";
+  completed.completedAt = new Date().toISOString();
 
   if (isRemoteBackendEnabled() && !isGuestUser(currentUser)) {
-    await upsertRemoteSession(session);
-    if (currentUser) remoteSessionsCache = await listRemoteSessions(currentUser.id);
+    await upsertRemoteSession(completed);
+    replaceRemoteSession(completed);
+    if (currentUser) {
+      try {
+        remoteSessionsCache = await listRemoteSessions(currentUser.id);
+      } catch {
+        // The upsert succeeded; retain the committed session until a later refresh.
+      }
+    }
   } else {
-    upsertLocalSession(session);
+    upsertLocalSession(completed);
   }
+  state.activeSession = completed;
   persist();
   return getActiveSession();
 }

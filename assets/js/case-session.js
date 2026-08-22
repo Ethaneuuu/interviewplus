@@ -9,6 +9,7 @@ const answersRoot = document.getElementById("caseAnswers");
 const finishButton = document.getElementById("finishCase");
 const message = document.getElementById("caseMessage");
 let isFinalizing = false;
+let autoFinalizationAttempted = false;
 
 await initializeApp();
 requireAuthorizedAccess("case-session.html");
@@ -27,11 +28,19 @@ function render() {
     return;
   }
   const { statement, answers } = session.caseData;
+  if (session.status !== "running") {
+    window.location.href = `./results.html?session=${encodeURIComponent(session.id)}`;
+    return;
+  }
   title.textContent = statement.title;
   instructions.textContent = statement.instructions;
   timer.textContent = formatTime(session.remainingMs);
   renderStatement(statement);
   renderAnswers(statement, answers);
+  if (session.remainingMs <= 0) {
+    autoFinalizationAttempted = true;
+    message.textContent = t("La correction automatique a échoué. Vos réponses sont sauvegardées : vous pouvez réessayer.", "Automatic evaluation failed. Your answers are saved; you can try again.");
+  }
 }
 
 function renderStatement(statement) {
@@ -114,7 +123,10 @@ function startTimer() {
     const session = getActiveSession();
     if (!session || session.sessionType !== "case" || session.status !== "running") return;
     timer.textContent = formatTime(session.remainingMs);
-    if (session.remainingMs <= 0) finalizeAndRedirect();
+    if (session.remainingMs <= 0 && !autoFinalizationAttempted) {
+      autoFinalizationAttempted = true;
+      finalizeAndRedirect();
+    }
   }, 1000);
 }
 

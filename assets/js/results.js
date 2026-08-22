@@ -94,6 +94,20 @@ function renderHistory(sessions, selectedSession) {
 
   resultsList.innerHTML = "";
   sessions.forEach((session) => {
+    if (session.sessionType === "case") {
+      const item = document.createElement("article");
+      item.className = session.id === selectedSession?.id ? "history-item is-selected" : "history-item";
+      item.innerHTML = `
+        <div>
+          <strong>${escapeHtml(session.caseData?.statement?.title || "Cas pratique")} | ${session.globalScore ?? "--"}%</strong>
+          <p class="chart-meta">${escapeHtml(session.config.difficulty || "")} | ${session.config.timerMinutes} min</p>
+          <p class="chart-meta">${t("Le", "On")} ${formatDate(session.completedAt || session.startedAt)}</p>
+        </div>
+        <a class="button button-ghost" href="./results.html?session=${encodeURIComponent(session.id)}">${t("Voir le détail", "View details")}</a>
+      `;
+      resultsList.append(item);
+      return;
+    }
     const answered = session.questions.filter((question) => question.candidateAnswer.trim()).length;
     const item = document.createElement("article");
     item.className = session.id === selectedSession?.id ? "history-item is-selected" : "history-item";
@@ -110,13 +124,17 @@ function renderHistory(sessions, selectedSession) {
 }
 
 function renderSessionDetail(session) {
+  if (session.sessionType === "case") {
+    renderCaseDetail(session);
+    return;
+  }
   const currentQuestion = session.questions[selectedQuestionIndex] || session.questions[0];
   selectedQuestionIndex = currentQuestion?.index || 0;
 
   detailPanel.classList.remove("hidden");
   detailTitle.textContent = `${displayTheme(session.config.theme)} | ${languageLabel(session.config.questionLanguage)} | ${formatDate(session.completedAt || session.startedAt)}`;
   detailScore.textContent = `${t("Score global", "Overall score")} ${session.globalScore ?? "--"}%`;
-  const canRecorrect = session.status === "review" && session.type !== "case";
+  const canRecorrect = session.status === "review" && session.sessionType !== "case";
   recorrectButton.classList.toggle("hidden", !canRecorrect);
   recorrectButton.disabled = false;
   recorrectButton.dataset.sessionId = canRecorrect ? session.id : "";
@@ -162,6 +180,31 @@ function renderSessionDetail(session) {
       ${renderFeedbackCard(t("Points forts", "Strengths"), currentQuestion.strengths, "success", t("Aucun point fort distinctif détecté.", "No distinctive strength detected."))}
       ${renderFeedbackCard(t("Axes d'amélioration", "Areas for improvement"), currentQuestion.improvements, "warning", t("Aucun axe d'amélioration spécifique.", "No specific area for improvement."))}
       ${renderFeedbackCard(t("Points manquants", "Missing points"), currentQuestion.missingPoints, "danger", t("Aucun point manquant critique.", "No critical missing point."))}
+    </div>
+  `;
+}
+
+function renderCaseDetail(session) {
+  const grade = session.caseData?.grade || {};
+  const breakdown = grade.breakdown || {};
+  detailPanel.classList.remove("hidden");
+  detailTitle.textContent = `${session.caseData?.statement?.title || t("Cas pratique", "Practical case")} | ${formatDate(session.completedAt || session.startedAt)}`;
+  detailScore.textContent = `${t("Score global", "Overall score")} ${session.globalScore ?? "--"}%`;
+  recorrectButton.classList.add("hidden");
+  recorrectButton.disabled = false;
+  recorrectButton.dataset.sessionId = "";
+  detailQuestionNav.innerHTML = "";
+  detailCorrection.innerHTML = `
+    <div class="result-correction-head">
+      <span class="pill">${t("Résultats du cas", "Case results")}</span>
+      <span class="pill">${evaluationLabel(session.correctionMode)}</span>
+      <span class="pill score-pill ${scoreTone(session.globalScore)}">${session.globalScore ?? "--"}%</span>
+    </div>
+    <h2>${grade.passed ? t("Réussi", "Passed") : t("À retravailler", "To revisit")}</h2>
+    <div class="feedback-stack result-feedback-stack">
+      <article class="feedback-card"><h3>${t("Résultats", "Results")}</h3><p>${breakdown.results ?? "--"}%</p></article>
+      <article class="feedback-card"><h3>${t("Méthode", "Method")}</h3><p>${breakdown.method ?? "--"}%</p></article>
+      ${session.caseData?.statement?.recommendation ? `<article class="feedback-card"><h3>${t("Justification", "Justification")}</h3><p>${breakdown.justification ?? "--"}%</p></article>` : ""}
     </div>
   `;
 }
