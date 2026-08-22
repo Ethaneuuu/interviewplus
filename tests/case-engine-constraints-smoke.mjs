@@ -16,6 +16,7 @@ let leverageBound = 0;
 let revolverDrawn = 0;
 let revolverRepaid = 0;
 let distinctSegments = 0;
+let intermediateDraws = 0;
 
 for (let seed = 0; seed < 1000; seed += 1) {
   const dcfStatement = generateCaseStatement({ theme: "dcf", difficulty: "advanced", seed });
@@ -43,6 +44,12 @@ for (let seed = 0; seed < 1000; seed += 1) {
   const lowManagement = Math.max(0, lowEquity - lbo.sponsor_equity * lboInputs.management_hurdle) * lboInputs.management_pool;
   close(lbo.sensitivity_low, (lowEquity - lowManagement) / lbo.sponsor_equity, `LBO low waterfall for seed ${seed}`);
 
+  const intermediateStatement = generateCaseStatement({ theme: "lbo", difficulty: "intermediate", seed });
+  const intermediateInputs = inputs(intermediateStatement);
+  const intermediate = calculateCaseSolution(intermediateStatement);
+  for (let year = 1; year <= 5; year += 1) ok(intermediate[`revolver_y${year}`] <= intermediateInputs.revolver_limit + .02, `Intermediate revolver cap for seed ${seed}, year ${year}`);
+  if (intermediate.fcf_y1 < 0 && intermediate.revolver_draw > 0) intermediateDraws += 1;
+
   const mergerStatement = generateCaseStatement({ theme: "merger-model", difficulty: "advanced", seed });
   const mergerInputs = inputs(mergerStatement);
   const merger = calculateCaseSolution(mergerStatement);
@@ -57,6 +64,7 @@ for (let seed = 0; seed < 1000; seed += 1) {
 ok(distinctSegments > 900, "Generated DCF cases need distinct segment forecasts");
 ok(revolverDrawn > 100, "Generated LBO cases need FCF-driven liquidity draws");
 ok(revolverRepaid > 50, "Generated LBO cases need revolver repayment priority");
+ok(intermediateDraws > 50, "Generated intermediate LBO cases need FCF-driven revolver draws");
 ok(cashBound > 100, "Generated Merger cases need cash constraints that bind");
 ok(stockFloorBound > 100, "Generated Merger cases need stock floors that bind");
 ok(leverageBound > 100, "Generated Merger cases need leverage caps that bind");

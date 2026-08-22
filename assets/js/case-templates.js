@@ -59,7 +59,7 @@ function publicInputs(theme, difficulty, random) {
   }
   if (theme === "lbo") {
     const data = { ebitda: n(180, 320), entry_multiple: decimal(random, 8, 11, .5), exit_multiple: decimal(random, 8, 11, .5), existing_debt: n(100, 250), cash: n(20, 80), debt: n(500, 800), fcf_margin: p(.36, .50), ebitda_growth: p(.04, .10), fees: n(15, 35), min_cash: 0, management_pool: 0, pik_rate: 0, rollover: 0 };
-    if (difficulty !== "easy") { const cash = data.cash; Object.assign(data, { senior_debt: n(300, 500), junior_debt: n(50, 150), min_cash: random() < .35 ? cash + n(150, 250) : n(20, Math.max(20, cash)), nol: n(20, 90), management_pool: p(.06, .12), revolver_limit: n(50, 150) }); }
+    if (difficulty !== "easy") { const cash = data.cash; Object.assign(data, { senior_debt: n(300, 500), junior_debt: n(50, 150), min_cash: n(20, Math.max(20, cash)), liquidity_shock: random() < .15 ? n(100, 200) : 0, nol: n(20, 90), management_pool: p(.06, .12), revolver_limit: n(50, 150) }); }
     if (difficulty === "advanced") { Object.assign(data, { revenue: n(700, 1200), revenue_growth: p(.04, .10), ebitda_margin: p(.18, .28), margin_expansion: p(.005, .02), capex_pct: p(.03, .07), nwc_pct: p(.06, .14), liquidity_shock: random() < .35 ? n(120, 220) : 0, management_hurdle: decimal(random, 1.2, 1.8, .1), ppa_step_up: n(20, 80), earnout: n(10, 60), rollover: n(30, 120), pik_rate: p(.08, .12), cash_sweep: p(.60, .90), call_premium: p(.01, .04) }); delete data.debt; delete data.fcf_margin; delete data.ebitda_growth; }
     return data;
   }
