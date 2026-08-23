@@ -16,4 +16,13 @@ assert(
   "Expected a .section-head rule with justify-content: space-between"
 );
 
+assert(
+  /\.topic-grid\s*{[^}]*grid-template-columns:\s*repeat\(3,/s.test(css),
+  "Expected .topic-grid to use a 3-column grid"
+);
+assert(
+  /\.feature-grid\s*{[^}]*grid-template-columns:\s*repeat\(4,/s.test(css),
+  "Expected .feature-grid to keep its 4-column grid"
+);
+
 console.log("css-fixes-smoke: OK");

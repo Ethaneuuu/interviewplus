@@ -503,7 +503,12 @@ button {
   line-height: 1.03;
 }
 
-.topic-grid,
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
