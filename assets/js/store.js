@@ -1151,26 +1151,6 @@ function isLowEffortAnswer(text) {
   );
 }
 
-function buildStrengths(answer, matchedPoints, keywordCoverage, structureScore) {
-  const strengths = [];
-  if (structureScore > 0.72) strengths.push("Reponse bien structuree.");
-  if (keywordCoverage > 0.42) strengths.push("Les concepts cles attendus sont globalement couverts.");
-  matchedPoints.slice(0, 2).forEach((point) => strengths.push(`Point bien traite: ${cleanPoint(point)}`));
-  if (/\b(example|for instance|for example|par exemple)\b/i.test(answer)) {
-    strengths.push("La reponse s'appuie sur un exemple concret.");
-  }
-  return unique(strengths).slice(0, 4);
-}
-
-function buildImprovements(answer, missingPoints, structureScore, detailScore) {
-  const improvements = [];
-  if (answer.trim().split(/\s+/).length < 50) improvements.push("Developper davantage le raisonnement.");
-  if (structureScore < 0.65) improvements.push("Structurer la reponse en etapes claires.");
-  if (detailScore < 0.5) improvements.push("Ajouter plus de precision, de logique financiere ou un exemple.");
-  missingPoints.slice(0, 3).forEach((point) => improvements.push(`Inclure explicitement: ${cleanPoint(point)}`));
-  return unique(improvements).slice(0, 4);
-}
-
 function buildSessionView(session) {
   if (!session) return null;
   const cloned = structuredClone(session);
@@ -1198,13 +1178,6 @@ function sanitizeLocalUser(user) {
     createdAt: user.createdAt,
     isGuest: Boolean(user.isGuest),
   };
-}
-
-function requireCurrentUser() {
-  if (!currentUser) {
-    throw new Error("AUTH_REQUIRED");
-  }
-  return currentUser;
 }
 
 function buildDatasetFromWorkbook(workbook) {
@@ -1429,15 +1402,11 @@ function shuffle(items) {
 }
 
 function safeId() {
-  if (window.crypto && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
-  }
-  return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return window.crypto.randomUUID();
 }
 
 function randomCaseSeed() {
-  if (window.crypto?.getRandomValues) return window.crypto.getRandomValues(new Uint32Array(1))[0];
-  return Math.floor(Math.random() * 0x100000000);
+  return window.crypto.getRandomValues(new Uint32Array(1))[0];
 }
 
 function isNumber(value) {

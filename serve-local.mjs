@@ -21,7 +21,6 @@ const publicRootFiles = new Set([
   "profile.html",
   "case-setup.html",
   "case-session.html",
-  "Questions_InterviewPlus.xlsx",
   "Questions_InterviewPlus_Bilingual.xlsx",
 ]);
 let localQuestionBankLoader;

@@ -1,12 +1,10 @@
 import {
   getCurrentUser,
-  getDatasetMeta,
   initializeApp,
   isGuestUser,
 } from "./store.js";
 import { t } from "./i18n.js";
 
-const datasetStats = document.getElementById("datasetStats");
 const authNavLink = document.getElementById("authNavLink");
 const primarySessionLink = document.getElementById("primarySessionLink");
 const heroAccountNote = document.getElementById("heroAccountNote");
@@ -16,17 +14,7 @@ const bootstrap = await initializeApp();
 renderHome(bootstrap.backendMode);
 
 function renderHome(backendMode) {
-  const meta = getDatasetMeta();
   const user = getCurrentUser();
-
-  if (datasetStats) {
-    const questionsPerLanguage = Math.max(0, ...Object.values(meta.questionCountsByLanguage || {}));
-    datasetStats.innerHTML = `
-      <span class="pill">${questionsPerLanguage || meta.questionCount} ${t("questions par langue", "questions per language")}</span>
-      <span class="pill">${meta.themeCount} ${t("thèmes", "topics")}</span>
-      <span class="pill">${meta.sourceLabel}</span>
-    `;
-  }
 
   if (user) {
     authNavLink.textContent = isGuestUser(user) ? t("Connexion", "Sign in") : t("Mon espace", "My account");

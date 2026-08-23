@@ -280,7 +280,7 @@ function mapServerSession(session) {
   return {
     ...session,
     status: session.status || "review",
-    sourceLabel: session.sourceLabel || "Questions_InterviewPlus.xlsx",
+    sourceLabel: session.sourceLabel || "Questions_InterviewPlus_Bilingual.xlsx",
     questions: Array.isArray(session.questions) ? session.questions : [],
   };
 }
@@ -358,7 +358,7 @@ export function mapRemoteSession(row) {
   return {
     id: row.id,
     userId: row.user_id,
-    sourceLabel: isCase ? "Cas pratiques" : "Questions_InterviewPlus.xlsx",
+    sourceLabel: isCase ? "Cas pratiques" : "Questions_InterviewPlus_Bilingual.xlsx",
     sessionType: isCase ? "case" : "questions",
     status: "review",
     startedAt: row.started_at,

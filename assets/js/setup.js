@@ -55,8 +55,8 @@ function hydrate() {
   startButton.disabled = themes.length === 0 || meta.degraded;
   if (meta.degraded) {
     setupMessage.textContent = t(
-      "La base Excel n'a pas pu être chargée. Vérifiez Questions_InterviewPlus.xlsx puis relancez l'application.",
-      "The Excel database could not be loaded. Check Questions_InterviewPlus.xlsx and restart the application."
+      "La base Excel n'a pas pu être chargée. Vérifiez Questions_InterviewPlus_Bilingual.xlsx puis relancez l'application.",
+      "The Excel database could not be loaded. Check Questions_InterviewPlus_Bilingual.xlsx and restart the application."
     );
   } else if (!themes.length) {
     setupMessage.textContent = t("Aucun thème n'a pu être chargé depuis la base Excel.", "No topic could be loaded from the Excel database.");
