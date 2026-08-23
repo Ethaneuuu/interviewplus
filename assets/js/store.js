@@ -150,9 +150,9 @@ let datasetPromise = null;
 let remoteSessionsCache = [];
 let datasetLoadError = "";
 
-export async function initializeApp() {
+export async function initializeApp({ loadDataset = true } = {}) {
   await hydrateCurrentUser();
-  if (!isRestrictedAccess() || currentUser) {
+  if (loadDataset && (!isRestrictedAccess() || currentUser)) {
     await ensureDatasetLoaded();
   }
   try {

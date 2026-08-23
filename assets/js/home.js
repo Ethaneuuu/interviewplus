@@ -10,7 +10,7 @@ const primarySessionLink = document.getElementById("primarySessionLink");
 const heroAccountNote = document.getElementById("heroAccountNote");
 const appConfig = window.INTERVIEWPLUS_CONFIG || {};
 
-const bootstrap = await initializeApp();
+const bootstrap = await initializeApp({ loadDataset: false });
 renderHome(bootstrap.backendMode);
 
 function renderHome(backendMode) {
