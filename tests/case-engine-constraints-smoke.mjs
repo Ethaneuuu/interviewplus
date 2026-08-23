@@ -29,6 +29,11 @@ for (let seed = 0; seed < 1000; seed += 1) {
   const releveredBeta = unleveredBeta * (1 + (1 - dcf.tax_rate) * dcf.target_debt_pct / (1 - dcf.target_debt_pct));
   const wacc = (dcf.risk_free_rate + releveredBeta * dcf.equity_risk_premium) * (1 - dcf.target_debt_pct) + dcf.cost_of_debt * (1 - dcf.tax_rate) * dcf.target_debt_pct;
   close(dcfSolution.discount_factor_y1, 1 / (1 + wacc) ** (dcf.stub_year_fraction + .5), `DCF WACC convention for seed ${seed}`);
+  const endYearStatement = structuredClone(dcfStatement);
+  endYearStatement.sections[0].fields.find(({ id }) => id === "mid_year_convention").value = 0;
+  const endYearSolution = calculateCaseSolution(endYearStatement);
+  close(endYearSolution.discount_factor_y1, 1 / (1 + wacc) ** (dcf.stub_year_fraction + 1), `DCF end-year convention for seed ${seed}`);
+  ok(endYearSolution.discount_factor_y1 < dcfSolution.discount_factor_y1, `DCF mid-year discounts earlier for seed ${seed}`);
 
   const lboStatement = generateCaseStatement({ theme: "lbo", difficulty: "advanced", seed });
   const lboInputs = inputs(lboStatement);
@@ -39,10 +44,12 @@ for (let seed = 0; seed < 1000; seed += 1) {
   close(lbo.cash_y1, lboInputs.min_cash + lbo.fcf_y1 + lbo.revolver_draw - lbo.sweep_y1, `LBO year-one cash bridge for seed ${seed}`);
   ok(lbo.sweep_y1 <= Math.max(0, lboInputs.min_cash + lbo.fcf_y1 + lbo.revolver_draw - lboInputs.min_cash) * lboInputs.cash_sweep + .02, `LBO single sweep envelope for seed ${seed}`);
   if (lbo.revolver_draw > 0 && lbo.fcf_y1 < 0) { revolverDrawn += 1; if (lbo.revolver_y2 < lbo.revolver_draw) revolverRepaid += 1; }
-  const exitEbitda = lbo.exit_ev / lboInputs.exit_multiple;
-  const lowEquity = (lboInputs.exit_multiple - .5) * exitEbitda - lbo.exit_debt + lbo.exit_cash;
-  const lowManagement = Math.max(0, lowEquity - lbo.sponsor_equity * lboInputs.management_hurdle) * lboInputs.management_pool;
-  close(lbo.sensitivity_low, (lowEquity - lowManagement) / lbo.sponsor_equity, `LBO low waterfall for seed ${seed}`);
+  const downsideStatement = structuredClone(lboStatement);
+  const downsideInputs = Object.fromEntries(downsideStatement.sections[0].fields.map((field) => [field.id, field]));
+  downsideInputs.revenue_growth.value -= lboInputs.scenario_revenue_growth_delta;
+  downsideInputs.ebitda_margin.value -= lboInputs.scenario_margin_delta;
+  downsideInputs.exit_multiple.value -= lboInputs.sensitivity_exit_multiple_delta;
+  close(lbo.sensitivity_low, calculateCaseSolution(downsideStatement).mom, `LBO integrated downside for seed ${seed}`);
 
   const intermediateStatement = generateCaseStatement({ theme: "lbo", difficulty: "intermediate", seed });
   const intermediateInputs = inputs(intermediateStatement);
