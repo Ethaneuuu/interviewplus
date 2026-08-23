@@ -2,8 +2,8 @@ import { deepEqual, equal } from "node:assert/strict";
 import { createHandler } from "../netlify/functions/correct.mjs";
 
 const restrictedEnv = {
-  CORRECTION_AUTH_MODE: "restricted",
   CORRECTION_MAX_REQUESTS_PER_MINUTE: "2",
+  CORRECTION_PREAUTH_MAX_REQUESTS_PER_MINUTE: "20",
   SUPABASE_URL: "https://project.supabase.co",
   SUPABASE_SERVICE_ROLE_KEY: "service-role-test",
 };
@@ -12,6 +12,7 @@ function event(body, token) {
   return {
     httpMethod: "POST",
     headers: token ? { authorization: `Bearer ${token}` } : {},
+    requestContext: { identity: { sourceIp: "203.0.113.10" } },
     body: JSON.stringify(body),
   };
 }
@@ -37,6 +38,13 @@ const handler = createHandler({ env: restrictedEnv, fetchImpl: authFetch(), serv
 let response = await handler(event({ type: "case", sessionId: "s1" }));
 equal(response.statusCode, 401);
 deepEqual(JSON.parse(response.body), { error: "AUTH_REQUIRED" });
+
+response = await createHandler({
+  env: { ...restrictedEnv, CORRECTION_AUTH_MODE: "local" },
+  fetchImpl: authFetch(),
+  service,
+})(event({ type: "case", sessionId: "no-bypass" }));
+equal(response.statusCode, 401, "Environment configuration must never bypass production authorization");
 
 response = await handler(event({ type: "case", sessionId: "s1" }, "invalid-jwt"));
 equal(response.statusCode, 401);
@@ -74,5 +82,34 @@ await handler(event({ type: "case", sessionId: "s2" }, "valid-jwt"));
 response = await handler(event({ type: "case", sessionId: "s3" }, "valid-jwt"));
 equal(response.statusCode, 429);
 deepEqual(JSON.parse(response.body), { error: "RATE_LIMITED" });
+
+let preauthCalls = 0;
+const preauthHandler = createHandler({
+  env: { ...restrictedEnv, CORRECTION_PREAUTH_MAX_REQUESTS_PER_MINUTE: "2" },
+  fetchImpl: async () => { preauthCalls += 1; return new Response("invalid", { status: 401 }); },
+  service,
+});
+for (let index = 0; index < 3; index += 1) {
+  response = await preauthHandler(event({ type: "case", sessionId: `abuse-${index}` }, "invalid-jwt"));
+}
+equal(response.statusCode, 429);
+equal(preauthCalls, 2, "Pre-auth limiting must stop requests before Supabase");
+
+let injectedAuthorizations = 0;
+let authClock = 0;
+const injectedHandler = createHandler({
+  env: { ...restrictedEnv, CORRECTION_MAX_REQUESTS_PER_MINUTE: "10", CORRECTION_AUTH_CACHE_MS: "30" },
+  now: () => authClock,
+  authorizer: async () => { injectedAuthorizations += 1; return { id: "test-user" }; },
+  service,
+});
+response = await injectedHandler(event({ type: "case", sessionId: "injected-authorizer" }, "test-jwt"));
+equal(response.statusCode, 200);
+equal(injectedAuthorizations, 1);
+await injectedHandler(event({ type: "case", sessionId: "cached-authorizer" }, "test-jwt"));
+equal(injectedAuthorizations, 1, "A warm retry must not repeat Supabase authorization");
+authClock = 31;
+await injectedHandler(event({ type: "case", sessionId: "expired-authorizer" }, "test-jwt"));
+equal(injectedAuthorizations, 2, "Authorization cache must expire and revalidate");
 
 console.log(JSON.stringify({ ok: true, auth: "restricted", idempotence: "warm-instance", rateLimit: "warm-instance" }));

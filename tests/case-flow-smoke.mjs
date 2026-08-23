@@ -18,18 +18,27 @@ ok(resultsSource.includes("renderCaseDetail"));
 ok(resultsSource.includes("Réussi"));
 const storage = new Map();
 let correctionFails = false;
+let failAfterCorrection = false;
+let failNextPersist = false;
 
 globalThis.window = globalThis;
 window.INTERVIEWPLUS_CONFIG = { backendMode: "local" };
 globalThis.localStorage = {
   getItem: (key) => storage.get(key) || null,
-  setItem: (key, value) => storage.set(key, String(value)),
+  setItem: (key, value) => {
+    if (key === "interviewplus-state-v4" && failNextPersist) {
+      failNextPersist = false;
+      throw new Error("PERSIST_FAILED");
+    }
+    storage.set(key, String(value));
+  },
   removeItem: (key) => storage.delete(key),
 };
 globalThis.fetch = async (url, options) => {
   if (String(url) !== "/api/correct") throw new Error(`Unexpected fetch: ${url}`);
   if (correctionFails) throw new Error("CORRECTION_UNAVAILABLE");
   const payload = JSON.parse(options.body);
+  if (failAfterCorrection) failNextPersist = true;
   return Response.json({ ...gradeCase(payload), mode: "deterministic" });
 };
 
@@ -47,6 +56,11 @@ const firstField = session.caseData.statement.answerFields[0];
 store.saveCaseAnswer(firstField.id, "123.4");
 equal(store.getActiveSession().caseData.answers[firstField.id], "123.4");
 
+failAfterCorrection = true;
+await rejects(() => store.finalizeCaseSession(), /PERSIST_FAILED/);
+equal(store.getActiveSession().status, "running");
+equal(JSON.parse(storage.get("interviewplus-state-v4")).activeSession.status, "running");
+failAfterCorrection = false;
 const completed = await store.finalizeCaseSession();
 equal(completed.status, "review");
 equal(completed.correctionMode, "deterministic");

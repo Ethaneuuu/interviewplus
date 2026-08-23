@@ -4,19 +4,32 @@ import XLSX from "../../../assets/js/xlsx.full.min.js";
 
 export function createQuestionBankLoader({ fetchImpl = fetch, env = process.env, workbookBytes } = {}) {
   let questionBankPromise;
-  return () => {
+  return ({ signal } = {}) => {
     if (!questionBankPromise) {
-      questionBankPromise = loadQuestionBank({ fetchImpl, env, workbookBytes }).catch((error) => {
+      questionBankPromise = loadSharedQuestionBank({ fetchImpl, env, workbookBytes }).catch((error) => {
         questionBankPromise = undefined;
         throw error;
       });
     }
-    return questionBankPromise;
+    return signal ? withAbort(questionBankPromise, signal) : questionBankPromise;
   };
 }
 
-async function loadQuestionBank({ fetchImpl, env, workbookBytes }) {
-  const bytes = workbookBytes || await fetchWorkbook(fetchImpl, env);
+async function loadSharedQuestionBank({ fetchImpl, env, workbookBytes }) {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(new Error("PRIVATE_QUESTION_LOAD_TIMEOUT")),
+    questionLoadTimeout(env),
+  );
+  try {
+    return await withAbort(loadQuestionBank({ fetchImpl, env, workbookBytes, signal: controller.signal }), controller.signal);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function loadQuestionBank({ fetchImpl, env, workbookBytes, signal }) {
+  const bytes = workbookBytes || await fetchWorkbook(fetchImpl, env, signal);
   const workbook = XLSX.read(bytes, { type: "buffer" });
   const bank = new Map();
 
@@ -27,7 +40,7 @@ async function loadQuestionBank({ fetchImpl, env, workbookBytes }) {
   return bank;
 }
 
-async function fetchWorkbook(fetchImpl, env) {
+async function fetchWorkbook(fetchImpl, env, signal) {
   const baseUrl = String(env.SUPABASE_URL || "").replace(/\/+$/, "");
   const bucket = env.PRIVATE_QUESTION_BUCKET || "interviewplus-private";
   const objectPath = env.PRIVATE_QUESTION_PATH || "Questions_InterviewPlus_Bilingual.xlsx";
@@ -37,9 +50,27 @@ async function fetchWorkbook(fetchImpl, env) {
       apikey: serviceRoleKey,
       Authorization: `Bearer ${serviceRoleKey}`,
     },
+    signal,
   });
   if (response.status !== 200) throw new Error(`PRIVATE_QUESTION_FILE_UNAVAILABLE:${response.status}`);
   return response.arrayBuffer();
+}
+
+function questionLoadTimeout(env) {
+  const configured = Number(env.PRIVATE_QUESTION_LOAD_TIMEOUT_MS || 12000);
+  return Number.isFinite(configured) ? Math.min(30000, Math.max(10, configured)) : 12000;
+}
+
+function withAbort(promise, signal) {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason || new Error("PRIVATE_QUESTION_LOAD_TIMEOUT"));
+    if (signal.aborted) return abort();
+    signal.addEventListener("abort", abort, { once: true });
+    Promise.resolve(promise).then(
+      (value) => { signal.removeEventListener("abort", abort); resolve(value); },
+      (error) => { signal.removeEventListener("abort", abort); reject(error); },
+    );
+  });
 }
 
 function addRows(bank, worksheet, language) {

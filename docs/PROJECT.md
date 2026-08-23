@@ -1,149 +1,226 @@
-# InterviewPlus — exploitation
+# InterviewPlus — documentation du projet
 
-Ce document décrit le code présent dans ce dépôt. Il ne prouve ni ne suppose qu'un site est déployé, qu'une clé est configurée, ou qu'un compte fournisseur est crédité.
+État décrit au **23 août 2026**. Cette documentation décrit le worktree `feat/openrouter-cas-pratiques`; elle ne signifie pas que le site est déployé, que les migrations ont été appliquées ou que des secrets de production sont configurés.
 
 ## Architecture
 
 ```text
-Navigateur (HTML/CSS/JS natifs)
-  ├─ Questions : sélection locale → réponses sauvegardées → POST /api/correct
-  ├─ Cas pratiques : template + graine → réponses sauvegardées → POST /api/correct
-  └─ Supabase : Auth, sessions et classeur privé pour les utilisateurs autorisés
-                                      │
-Netlify Function `correct` ───────────┤
-  ├─ questions : référence privée + OpenRouter (gratuit, puis payant)
-  └─ case : corrigé numérique déterministe, OpenRouter seulement pour la recommandation
+Navigateur — HTML/CSS/ES modules natifs
+  ├─ Questions : configuration → session chronométrée → POST /api/correct
+  ├─ Cas pratiques : thème/difficulté/temps → formulaire → POST /api/correct
+  └─ Supabase : Auth, historique utilisateur et classeur privé
+                         │ Bearer JWT
+Netlify Function `correct`
+  ├─ Auth Supabase + `authorized_users`
+  ├─ Questions : référence privée → OpenRouter gratuit → payant
+  └─ Cas : calcul déterministe → OpenRouter seulement pour la recommandation
 ```
 
-Le navigateur ne reçoit ni `OPENROUTER_API_KEY`, ni `SUPABASE_SERVICE_ROLE_KEY`, ni le corrigé numérique intégral du cas **avant soumission**. Il persiste une réponse avant tout appel réseau : un échec laisse un brouillon réessayable. Après correction, la réponse de cas retourne les valeurs attendues, crédits et tolérances des champs demandés ; le navigateur les enregistre et les affiche pour l'entraînement. Le seul endpoint applicatif public de cette version est `POST /api/correct`.
+L'application n'offre ni recherche ni parcours libre des 3 482 questions avant une session. En production, le classeur n'est pas dans le bundle public : un navigateur authentifié le télécharge depuis le bucket privé pour construire la session, tandis que la Function en charge une copie indépendante pour ne jamais faire confiance à une référence envoyée par le client. Les réponses types existent donc en mémoire côté navigateur autorisé ; l'absence d'explorateur est une règle produit, pas une barrière anti-triche absolue.
+
+Les réponses sont sauvegardées avant la correction. Après soumission, une session n'est marquée `review` qu'après correction et commit : écriture locale avant mutation mémoire en mode local, ou upsert distant comme point de commit en mode Supabase/serveur. Une panne de cache après un upsert distant n'annule pas la réussite ; une panne avant le commit conserve le brouillon `running`, réessayable.
 
 ## Stack et carte des fichiers
 
-- HTML, CSS et ES modules natifs ; aucune dépendance ou framework front ajouté.
-- `assets/js/store.js` orchestre les sessions, le stockage local, le repli local et la persistance distante ; `backend.js` adapte Supabase ou le serveur local ; `correction-client.js` appelle l'API.
-- `assets/js/keywords.js` extrait les concepts ; `keyword-overrides.js` porte les exceptions éditoriales ; `case-templates.js` fabrique les énoncés déterministes.
-- `netlify/functions/correct.mjs` est le handler ; `lib/correction-service.mjs` valide et route ; `question-bank.mjs` lit le classeur privé ; `case-grader.mjs` calcule et note.
-- `supabase/schema.sql` crée les tables, le bucket et les policies ; `netlify.toml` publie `dist` et redirige `/api/correct` ; `scripts/build-static.mjs` produit `dist` sans sources privées.
-- Pages : `index.html`, `auth.html`, `setup.html`, `session.html`, `results.html`, `profile.html`, `case-setup.html` et `case-session.html`.
+- **Client :** HTML, CSS, JavaScript natif, contrôles HTML accessibles et SheetJS déjà présent ; aucun framework ni nouvelle dépendance.
+- **État et données :** `assets/js/store.js` gère les sessions et leur atomicité ; `assets/js/backend.js` adapte Supabase ou le serveur local ; `assets/js/correction-client.js` ajoute le Bearer et la deadline client.
+- **Questions :** `assets/js/keywords.js` extrait les concepts ; `assets/js/keyword-overrides.js` contient les exceptions éditoriales ; `netlify/functions/lib/question-bank.mjs` charge et met en cache le classeur privé.
+- **Cas :** `assets/js/case-templates.js` génère les énoncés publics par graine ; `netlify/functions/lib/case-grader.mjs` conserve les formules et la notation côté serveur.
+- **API :** `netlify/functions/correct.mjs` gère HTTP, auth, limites et idempotence ; `netlify/functions/lib/correction-service.mjs` valide, route, borne les délais et appelle OpenRouter.
+- **Interface :** `case-setup.html` choisit thème, difficulté et durée ; `case-session.html` affiche l'énoncé après lancement ; `results.html` rend Questions et Cas. Les pages historiques restent `index.html`, `auth.html`, `setup.html`, `session.html` et `profile.html`.
+- **Déploiement :** `supabase/schema.sql` porte tables/RLS/bucket ; `netlify.toml` route la Function ; `scripts/build-static.mjs` produit l'allowlist publique de 34 fichiers dans `dist`.
+- **Tests :** les scripts autonomes `tests/*-smoke.mjs` couvrent contrats, sécurité, atomicité, i18n, persistance, build et logique financière sans framework de test.
 
-## Flux de données
+Le build statique exclut Functions, SQL, tests, documentation, classeurs et `keyword-overrides.js`. Netlify regroupe séparément les imports nécessaires à la Function.
 
-### Questions
+## Flux Questions
 
-La banque n'est pas navigable depuis l'UI. Au lancement, le navigateur charge le classeur selon le mode choisi et sélectionne la session. À la correction, il envoie seulement `questionId`, `language` et `answer`. La Function charge en mémoire chaude le classeur Supabase privé, reconstruit la question, la réponse de référence et les mots-clés, puis demande un JSON strict à OpenRouter. Une réponse OpenRouter invalide, une erreur HTTP ou une limite fait essayer le modèle payant. Si les deux échouent, le client conserve ses réponses et applique le correcteur navigateur : son résultat est marqué `local-degraded`. Une recorrection est possible depuis les résultats.
+Le candidat choisit langue, thème, nombre de questions et temps. À la fin du tunnel, la correction démarre directement, sans récapitulatif de dix secondes. Pour chaque réponse, le serveur croise :
 
-### Cas pratiques
+1. la question ;
+2. la réponse du candidat ;
+3. les mots-clés attendus ;
+4. la réponse type.
 
-`theme`, `difficulty` et `seed` déterminent intégralement l'énoncé. DCF, LBO et Merger Model ont les niveaux `easy`, `intermediate` et `advanced` ; un thème conserve ses livrables principaux à chaque niveau et ajoute des sorties de méthode aux niveaux suivants. Le serveur régénère l'énoncé et le corrigé à partir de la graine, compare chaque valeur à sa tolérance, et donne un crédit intermédiaire. Résultats, méthode et, lorsqu'elle existe, justification composent la note ; le seuil de réussite est 70. Une recommandation narrative n'est demandée aujourd'hui que par le Merger Model avancé et vaut au plus 5 %. Son indisponibilité ne bloque pas la note numérique : le mode reste `deterministic` avec `narrativeStatus: "unavailable"`.
+OpenRouter évalue exactitude et couverture des concepts comme un ensemble, sans pondération fixe artificielle. Les contenus candidat sont sérialisés comme données JSON non fiables ; le prompt système interdit de suivre leurs instructions. La sortie utilise un JSON Schema strict puis une seconde validation serveur : identifiants exacts, score 0–100, au plus 20 concepts reconnus et 20 éléments manquants de 200 caractères, feedback de 1 000 caractères maximum.
+
+Ordre : `openai/gpt-oss-120b:free`, puis `openai/gpt-oss-120b` si le temps et le budget chaud le permettent. Si les deux échouent, le client conserve les réponses et utilise le correcteur local avec `mode: "local-degraded"`. Une recorrection OpenRouter est disponible depuis les résultats et remplace uniquement les champs de correction après une réponse complète valide.
+
+## Flux Cas pratiques
+
+Avant lancement, l'utilisateur choisit uniquement le thème, la difficulté et le temps. L'énoncé et les champs apparaissent ensuite. La validation lance immédiatement la correction.
+
+`theme + difficulty + seed` reproduit exactement un template versionné. Chaque thème garde les mêmes outputs cœur entre `easy`, `intermediate` et `advanced`; les niveaux supérieurs ajoutent des hypothèses à dériver, des calculs intermédiaires, des scénarios et des contraintes. Toutes les conventions utilisées par le corrigé sont publiques dans l'énoncé ; aucune valeur attendue ne l'est avant soumission.
+
+| Thème | Facile | Intermédiaire | Avancé |
+|---|---|---|---|
+| DCF | Prévisions et WACC fournis | WACC à construire, mid-year/stub, Gordon + multiple et grilles de sensibilité | Segments, bêtas désendettés/réendettés et scénarios opérationnels croisés |
+| LBO | Une dette et FCF direct | Tranches, revolver, cash minimum, NOL et management pool | PIK, cash sweep, call premium, projections Y1–Y5, bilan intégré, waterfall et bridge de création de valeur |
+| Merger Model | Prix, mix, résultats et actions | Contraintes de financement, frais et PPA | Bilans historiques, levier maximal, DTL/goodwill, bilan combiné, rampe/NPV des synergies et EPS Y1–Y3 |
+
+Les outputs cœur couvrent notamment UFCF/EV/equity/share price pour le DCF, sources-emplois/dette/rendements pour le LBO, et prix/financement/EPS/accrétion-dilution pour le Merger Model. Les valeurs numériques sont notées par tolérance absolue : crédit entier dans la tolérance, demi-crédit jusqu'à deux fois la tolérance, sinon zéro.
+
+Sans narration, la note vaut 75 % résultats et 25 % méthode. Le Merger Model avancé réserve 5 % à la recommandation : 70 % résultats, 25 % méthode, 5 % justification. Une recommandation vide ne déclenche aucun appel IA et plafonne la note à 95 ; une indisponibilité OpenRouter conserve la note numérique avec `narrativeStatus: "unavailable"`. Le seuil de réussite est 70.
+
+La page active et les résultats sont localisés explicitement en français et anglais pour les neuf combinaisons. Les anciennes lignes Supabase sans `session_json` infèrent la langue de la première question.
 
 ## `POST /api/correct`
 
-Méthode obligatoire : `POST`, `Content-Type: application/json`. Les autres méthodes retournent `405 {"error":"METHOD_NOT_ALLOWED"}` ; un JSON invalide retourne `400 {"error":"INVALID_JSON"}`.
+Seul endpoint applicatif Netlify de cette version. Méthode `POST`, JSON et header `Authorization: Bearer <Supabase JWT>` obligatoires en production. Le client InterviewPlus exige aussi un `sessionId` non vide ; la Function l'utilise avec l'utilisateur et le hash du corps comme clé d'idempotence pendant dix minutes. Un `sessionId` absent ou supérieur à 128 caractères désactive ce cache et n'est pas un usage client supporté.
 
-### Requête `questions`
+Le handler vérifie le JWT via `${SUPABASE_URL}/auth/v1/user`, puis exige une ligne `authorized_users` active pour l'e-mail. Il n'existe aucun `CORRECTION_AUTH_MODE` ni bypass d'environnement en production. Le CORS n'est pas utilisé comme contrôle d'accès.
+
+### Requête Questions
 
 ```json
 {
   "type": "questions",
-  "sessionId": "optional-client-id",
-  "items": [{ "questionId": "1", "language": "fr", "answer": "Le WACC…" }]
+  "sessionId": "uuid-de-session",
+  "items": [
+    { "questionId": "1", "language": "fr", "answer": "Le WACC est…" }
+  ]
 }
 ```
 
-`items` contient 1 à 20 identifiants uniques ; chaque réponse est une chaîne d'au plus 8 000 caractères. `sessionId` n'est pas utilisé par le serveur. Une réussite retourne :
+`items` contient 1 à 20 IDs uniques. Une réponse contient au plus 8 000 caractères et le lot au plus 64 000.
 
 ```json
 {
-  "score": 78,
+  "score": 82,
   "mode": "openrouter",
   "provider": "openrouter",
   "model": "openai/gpt-oss-120b:free",
-  "items": [{ "questionId": "1", "score": 78, "recognizedConcepts": ["WACC"], "missingElements": ["…"], "feedback": "…" }]
+  "items": [
+    {
+      "questionId": "1",
+      "score": 82,
+      "recognizedConcepts": ["WACC"],
+      "missingElements": ["structure de capital"],
+      "feedback": "Ajoutez le lien avec les flux non endettés."
+    }
+  ]
 }
 ```
 
-Chaque score est borné de 0 à 100 et chaque identifiant demandé doit revenir exactement une fois. Erreurs de validation `400` : `INVALID_CORRECTION_TYPE`, `INVALID_CORRECTION_ITEMS`, `INVALID_CORRECTION_ITEM`, `TOO_MANY_ITEMS`, `ANSWER_TOO_LONG`, `UNKNOWN_QUESTION`. Après les deux modèles indisponibles, la Function retourne `502 {"error":"OPENROUTER_UNAVAILABLE"}` ; le navigateur déclenche alors `local-degraded`. Toute autre erreur serveur est `500 {"error":"INTERNAL_ERROR"}`.
-
-### Requête `case`
+### Requête Cas
 
 ```json
 {
   "type": "case",
+  "sessionId": "uuid-de-session",
   "theme": "dcf",
   "difficulty": "intermediate",
   "seed": 12345,
   "answers": { "enterprise_value": 1234.5 },
-  "recommendation": "optional, only when the statement requests it"
+  "recommendation": "Seulement si l'énoncé la demande"
 }
 ```
 
-`theme` vaut `dcf`, `lbo` ou `merger-model`; `difficulty` vaut `easy`, `intermediate` ou `advanced`; `seed` est un entier de 0 à 4 294 967 295. `answers` ne peut contenir que les champs de l'énoncé (au plus 80), avec un nombre fini ou `""`. La recommandation est une chaîne d'au plus 2 000 caractères et n'est recevable que si le template la demande.
+`theme` vaut `dcf`, `lbo` ou `merger-model`; `difficulty` vaut `easy`, `intermediate` ou `advanced`; `seed` est un entier non signé 32 bits. `answers` contient au plus 80 champs connus, nombres finis ou chaîne vide. `recommendation` est limitée à 2 000 caractères.
 
 ```json
 {
   "score": 78.25,
   "passed": true,
   "breakdown": { "results": 80, "method": 75, "justification": 0 },
-  "items": [{ "id": "enterprise_value", "category": "results", "credit": 1, "score": 1234.5, "tolerance": 1 }],
+  "items": [
+    { "id": "enterprise_value", "category": "results", "credit": 1, "score": 1234.5, "tolerance": 1 }
+  ],
   "statement": { "templateId": "dcf-intermediate-v1" },
   "mode": "deterministic"
 }
 ```
 
-Avec une recommandation notée, la réponse ajoute `mode: "openrouter"`, `provider`, `model`, `narrativeStatus: "scored"` et `feedback`. Les erreurs de validation `400` supplémentaires sont `INVALID_CASE_THEME`, `INVALID_CASE_DIFFICULTY`, `INVALID_CASE_SEED`, `INVALID_CASE_ANSWERS`, `TOO_MANY_CASE_ANSWERS`, `INVALID_CASE_ANSWER` et `INVALID_CASE_RECOMMENDATION`.
+`items[].score` est la valeur attendue retournée seulement après soumission. Une narration notée ajoute `mode: "openrouter"`, `provider`, `model`, `narrativeStatus: "scored"` et `feedback`.
 
-## Lancer, tester et diagnostiquer
+### Statuts et erreurs
 
-Le serveur local lit le classeur du dépôt et réutilise le même service ; il ne reproduit pas l'authentification Netlify.
+- `400` : `INVALID_JSON`, `INVALID_CORRECTION_TYPE`, `INVALID_CORRECTION_ITEMS`, `INVALID_CORRECTION_ITEM`, `TOO_MANY_ITEMS`, `ANSWER_TOO_LONG`, `CORRECTION_PAYLOAD_TOO_LARGE`, `UNKNOWN_QUESTION` ou `INVALID_CASE_*`/`TOO_MANY_CASE_ANSWERS`.
+- `401 AUTH_REQUIRED` : Bearer absent ou JWT invalide ; `403 ACCESS_NOT_AUTHORIZED` : utilisateur valide mais absent/inactif dans `authorized_users`.
+- `429 RATE_LIMITED` : limite technique pré-auth ou limite par utilisateur dépassée.
+- `502 OPENROUTER_UNAVAILABLE` : les Questions n'ont reçu aucune réponse IA valide dans le budget ; le client passe en `local-degraded`. Un Cas conserve son calcul déterministe.
+- `405 METHOD_NOT_ALLOWED` pour une autre méthode ; `500 INTERNAL_ERROR` pour une configuration, Supabase, corpus ou erreur interne non exposée.
+
+Les erreurs ne sont pas mises en cache : elles restent réessayables. Les logs internes utilisent uniquement des codes stables. `INTERVIEWPLUS_OPENROUTER_USAGE <model> <prompt_tokens> <completion_tokens> <total_tokens>` et `INTERVIEWPLUS_OPENROUTER_BUDGET_ALERT` ne contiennent ni e-mail, prompt, réponse, référence ou clé.
+
+## Authentification locale
 
 ```bash
 node serve-local.mjs
 # http://localhost:4173
-
-netlify dev
-
-node tests/keywords-smoke.mjs
-node tests/correction-api-smoke.mjs
-node tests/question-correction-smoke.mjs
-node tests/case-engine-smoke.mjs
-node tests/case-flow-smoke.mjs
-node tests/deployment-smoke.mjs
-node tests/engine-smoke.mjs
-node tests/restricted-access-smoke.mjs
-git diff --check
 ```
 
-`OPENROUTER_UNAVAILABLE` signifie que les deux appels modèle ont échoué ; vérifiez clé, crédits et limites avant de réessayer. Les erreurs `INVALID_CASE_*` et `INVALID_CORRECTION_*` sont des contrats client à corriger, pas des erreurs à masquer. Les diagnostics internes ne sont pas exposés par l'API : la Function écrit uniquement `INTERVIEWPLUS_CORRECTION_ERROR` suivi d'un code stable dans les **Netlify Function logs**. `PRIVATE_QUESTION_FILE_UNAVAILABLE` indique un classeur privé inaccessible ; `QUESTION_BANK_ERROR` indique une feuille absente, une réponse vide, un doublon ou un compte autre que 3 482 ; `CORRECTION_INTERNAL_ERROR` couvre les autres erreurs. Ces logs ne contiennent ni prompt, ni réponse candidat, ni référence, ni clé.
+Le serveur injecte à la volée `backendMode: "server"` sans modifier `assets/js/config.js`. Après inscription/connexion locale, `getRemoteSession()` lit le token local et `correction-client.js` l'envoie en Bearer à `/api/correct`. Une correction anonyme reçoit `401`. Le loader du classeur est paresseux et partagé : un Cas déterministe fonctionne sans classeur ; une correction Questions le charge à la première demande.
+
+Les routes `/api/auth/*`, `/api/me` et `/api/sessions` appartiennent uniquement au serveur de développement Node ; elles ne sont pas des endpoints Netlify de production.
+
+## Délais, limites et garde-fous OpenRouter
+
+| Variable serveur | Défaut | Rôle |
+|---|---:|---|
+| `CORRECTION_SERVER_TIMEOUT_MS` | `17500` | deadline globale Function, plafonnée à 19 s |
+| `SUPABASE_AUTH_TIMEOUT_MS` | `2500` | délai de chaque appel Auth/autorisation, borné par la deadline |
+| `OPENROUTER_TIMEOUT_MS` | `6000` | délai par tentative, borné entre 1 et 15 s |
+| `CORRECTION_RETURN_MARGIN_MS` | `500` | marge réservée à la réponse HTTP, maximum 5 s |
+| `OPENROUTER_PAID_MIN_BUDGET_MS` | `2000` | temps restant minimal avant de lancer le modèle payant |
+| `PRIVATE_QUESTION_LOAD_TIMEOUT_MS` | `12000` | timeout propre au cold start partagé, borné entre 10 ms et 30 s |
+| `CORRECTION_PREAUTH_MAX_REQUESTS_PER_MINUTE` | `30` | limite par IP/identifiant technique avant Supabase |
+| `CORRECTION_MAX_REQUESTS_PER_MINUTE` | `10` | limite par utilisateur authentifié |
+| `CORRECTION_AUTH_CACHE_MS` | `30000` | cache positif d'autorisation ; révocation visible sous 30 s au plus |
+| `CORRECTION_CACHE_MAX_ENTRIES` | `500` | plafond et purge TTL des caches chauds |
+| `OPENROUTER_PAID_MAX_REQUESTS_PER_HOUR` | `100` | plafond secondaire de tentatives payantes par instance chaude |
+
+Le navigateur borne l'opération complète — récupération de session comprise — à 20 s. Le service garde une seule deadline autour du corpus, du fetch OpenRouter et de la lecture/parsing du corps. Le cold start du corpus possède son propre contrôleur : l'expiration d'un client n'annule pas les autres waiters.
+
+Les limites, caches, idempotence et compteur payant ci-dessus vivent en mémoire d'une instance chaude Netlify. Ils repartent à zéro au redémarrage et ne forment pas un quota distribué. Le plafond de dépense configuré sur la clé OpenRouter est le garde-fou durable de cette version. Avant trafic multi-instance significatif ou sessions payantes, ajouter un quota atomique partagé et un ledger.
 
 ## Netlify
 
-`netlify.toml` exécute `node scripts/build-static.mjs`, publie `dist`, bundle SheetJS pour la Function et redirige `/api/correct`. Dans les variables d'environnement de site, définir les valeurs serveur suivantes, sans les copier dans `assets/js/config.js` ou `assets/js/config.example.js` :
+`netlify.toml` exécute `node scripts/build-static.mjs`, publie `dist`, inclut SheetJS dans le bundle de Function et redirige `/api/correct`.
+
+Variables obligatoires :
 
 ```text
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<secret serveur>
+OPENROUTER_API_KEY=<secret serveur>
+```
+
+Variables avec défaut :
+
+```text
 PRIVATE_QUESTION_BUCKET=interviewplus-private
 PRIVATE_QUESTION_PATH=Questions_InterviewPlus_Bilingual.xlsx
-OPENROUTER_API_KEY=<secret serveur>
 OPENROUTER_FREE_MODEL=openai/gpt-oss-120b:free
 OPENROUTER_PAID_MODEL=openai/gpt-oss-120b
 ```
 
-Les deux noms de bucket, chemin et modèles ont des valeurs par défaut, mais les secrets et `SUPABASE_URL` sont requis en production. Prévisualiser avec `netlify dev`; construire hors ligne avec `netlify build --offline` si la CLI est installée. Connecter ensuite le dépôt et configurer les variables dans Netlify avant tout déploiement ; ce dépôt ne contient ni clé ni déclaration d'environnement déployé.
+Ajouter au besoin les réglages de la table précédente. Aucun secret ne doit être copié dans `assets/js/config.js` ou `config.example.js`.
+
+Déploiement :
+
+1. connecter le dépôt à Netlify et conserver la commande/publish de `netlify.toml` ;
+2. définir les variables serveur dans l'environnement Netlify ;
+3. renseigner `supabaseUrl` et `supabaseAnonKey` publics dans `assets/js/config.js` ;
+4. lancer une preview, vérifier la Function, puis seulement publier.
+
+**État actuel : configuré dans le dépôt, mais ni déployé ni validé en live.** La CLI Netlify est absente de l'environnement de travail ; le bundle/cold start réel est donc signalé `skipped-cli-missing` par le smoke de déploiement.
 
 ## Supabase
 
 1. Exécuter `supabase/schema.sql` dans le SQL Editor.
-2. Créer/remplir le bucket privé `interviewplus-private` avec `Questions_InterviewPlus_Bilingual.xlsx` ; la migration le rend non public.
-3. Configurer dans Auth la Site URL et les Redirect URLs exactes des environnements local et Netlify.
-4. Configurer seulement `supabaseUrl` et `supabaseAnonKey` côté navigateur, puis le mode voulu dans `assets/js/config.js` (voir `config.example.js`). La clé anon est publique par conception, la service-role ne l'est jamais.
-5. Vérifier en tant qu'utilisateur autorisé que son profil et ses propres `session_runs` sont accessibles ; vérifier qu'un utilisateur non autorisé, un autre utilisateur, et `anon` ne peuvent pas lire les objets ou sessions concernés.
+2. Charger `Questions_InterviewPlus_Bilingual.xlsx` dans le bucket privé `interviewplus-private` au chemin exact configuré.
+3. Ajouter les e-mails autorisés dans `public.authorized_users` avec `active = true`.
+4. Configurer Auth Site URL et Redirect URLs pour local, preview et production.
+5. Vérifier avec des comptes distincts que chacun ne lit/modifie que son profil, ses `session_runs` et l'objet privé autorisé.
 
-Le schéma applique RLS à `profiles`, `session_runs`, `authorized_users` et au bucket. `public.is_authorized_user()` vérifie l'e-mail JWT dans `authorized_users`; les policies de `session_runs` imposent `auth.uid() = user_id`. Les colonnes de session des cas sont `session_type`, `difficulty`, `template_id`, `case_seed`, `case_json`, `score_json`, `correction_mode`, `correction_provider` et `correction_model`.
+Le schéma active RLS sur `authorized_users`, `profiles` et `session_runs`. `public.is_authorized_user()` vérifie l'e-mail JWT actif ; les policies de session imposent `auth.uid() = user_id`. Les données Case sont stockées dans les colonnes additives `session_type`, `difficulty`, `template_id`, `case_seed`, `case_json`, `score_json`, `correction_mode`, `correction_provider`, `correction_model` et dans l'enveloppe complète `session_json`.
 
-## Réponse, mots-clés et référence
+La migration et les policies ont été contrôlées statiquement et avec des fakes. Elles n'ont pas été appliquées à un projet Supabase de staging dans cette passe.
 
-La référence n'est jamais fournie par le client : le loader lit `EN_QA_FINAL` et `FR_QR`, clé `"<langue>:<id>"`, exige 3 482 réponses et ne garde que question, réponse de référence et mots-clés. Les mots-clés proviennent de la réponse type normalisée. Une exception ciblée se déclare dans `assets/js/keyword-overrides.js` :
+## Mots-clés et banque de questions
+
+Le loader lit `EN_QA_FINAL` et `FR_QR`, utilise la clé `<langue>:<id>`, exige exactement 3 482 entrées et conserve question, réponse type et mots-clés. Une exception ciblée se déclare dans `assets/js/keyword-overrides.js` :
 
 ```js
 export const KEYWORD_OVERRIDES = Object.freeze({
@@ -151,7 +228,7 @@ export const KEYWORD_OVERRIDES = Object.freeze({
 });
 ```
 
-`replace` prévaut sur l'extraction ; sinon `add` et `remove` complètent/retirent les concepts. Il n'existe pas de fichier de banque compilé : le cache de Function se reconstruit au prochain démarrage. Pour vérifier/reconstruire ce cache depuis le classeur actuel :
+`replace` remplace l'extraction ; sinon `add` et `remove` la complètent. Le cache se reconstruit au cold start ou après une vraie erreur de chargement.
 
 ```bash
 node -e "const fs=require('node:fs'); import('./netlify/functions/lib/question-bank.mjs').then(async ({createQuestionBankLoader})=>{const bank=await createQuestionBankLoader({workbookBytes:fs.readFileSync('Questions_InterviewPlus_Bilingual.xlsx')})(); if(bank.size!==3482) process.exit(1); console.log(bank.size)})"
@@ -159,24 +236,52 @@ node -e "const fs=require('node:fs'); import('./netlify/functions/lib/question-b
 
 ## Créer un template
 
-Ajouter un quatrième thème est une modification de code, pas un éditeur UI : ajouter le thème dans `CASE_THEMES`, ses sorties principales dans `CORE_OUTPUTS`, ses sorties de méthode par niveau dans `METHOD_OUTPUTS`, ses entrées réalistes dans `publicInputs`, puis sa formule dans `case-grader.mjs`. Conserver un seul template versionné par thème/niveau (`<theme>-<difficulty>-v1`), les mêmes `coreOutputIds` entre niveaux, et des modules intermédiaires croissants. La graine doit toujours produire la même instance ; les données doivent respecter les contraintes financières avant affichage. Chaque champ précise poids, format et une tolérance **absolue** : une valeur dans la tolérance reçoit tout le crédit ; au-delà et jusqu'à `2 × tolerance`, elle reçoit un demi-crédit. Les tolérances relatives exigent un type explicite et une branche de calcul avant d'être documentées ou utilisées. Ajouter les libellés i18n et les smoke tests de reproductibilité, contraintes, crédit intermédiaire et parcours.
+Un thème possède un générateur public et une formule serveur, pas neuf exercices copiés. Pour ajouter un thème :
+
+1. ajouter son ID à `CASE_THEMES` et ses livrables stables à `CORE_OUTPUTS` ;
+2. ajouter les sorties de méthode progressives à `METHOD_OUTPUTS` et les données publiques à `publicInputs` ;
+3. ajouter les formules à `case-grader.mjs` sans constante cachée ;
+4. localiser les nouveaux IDs dans `assets/js/i18n.js` ;
+5. étendre l'oracle indépendant et les smokes de reproductibilité/invariants.
+
+Chaque champ précise format, poids et tolérance absolue. La graine doit être reproductible, toutes les hypothèses déterminantes doivent être visibles, et l'oracle ne doit importer ni `case-grader.mjs` ni `calculateCaseSolution`.
 
 ## OpenRouter — Coûts et quotas
 
-Ordre serveur : `openai/gpt-oss-120b:free`, puis `openai/gpt-oss-120b`; pour les questions, l'échec des deux mène au mode navigateur `local-degraded`. Pour un cas, le calcul déterministe reste disponible si la partie narrative ne l'est pas. Aucun sélecteur de modèle n'est exposé au candidat.
+Choix actuel : `openai/gpt-oss-120b:free`, puis `openai/gpt-oss-120b`. Il maximise la qualité disponible via le palier gratuit tout en gardant un fallback payant très peu coûteux. Aucun sélecteur de fournisseur n'est exposé à l'utilisateur.
 
-Au **23 août 2026**, la page modèle affiche pour `openai/gpt-oss-120b` 0,03 USD/M tokens en entrée et 0,17 USD/M en sortie. À l'hypothèse de 1 000 tokens d'entrée et 300 en sortie, cela fait `1,000 × (1,000 × 0.03 / 1,000,000 + 300 × 0.17 / 1,000,000) = 0.081 USD` pour 1 000 corrections. C'est une hypothèse de planification, pas un plafond : vérifier prix, modèles et limites avant exploitation sur les pages officielles [modèle](https://openrouter.ai/openai/gpt-oss-120b) et [limites](https://openrouter.ai/docs/api-reference/limits).
+Au **23 août 2026**, OpenRouter affiche 0,03 USD par million de tokens en entrée et 0,17 USD en sortie pour le modèle payant. Avec 1 000 tokens d'entrée et 300 de sortie, l'hypothèse est d'environ **0,081 USD pour 1 000 corrections**. Ce calcul est indicatif : vérifier [la page modèle](https://openrouter.ai/openai/gpt-oss-120b), [les limites](https://openrouter.ai/docs/api-reference/limits) et [l'usage](https://openrouter.ai/docs/use-cases/usage-accounting) avant ouverture.
 
-Une clé peut avoir un plafond et un suivi propres (`GET /api/v1/key` : `limit_remaining`, usages), mais OpenRouter gouverne la capacité globalement : multiplier les clés ou les comptes ne contourne pas les limites de débit. Le solde et les crédits du compte/workspace restent la source partagée des dépenses ; la limite de clé est seulement un garde-fou. Surveiller aussi les erreurs 402/429 et les données `usage` renvoyées par OpenRouter ([usage accounting](https://openrouter.ai/docs/use-cases/usage-accounting)). Ce budget est distinct d'un abonnement ChatGPT et de la facturation directe OpenAI ; il ne se mélange à eux qu'en cas de configuration explicite BYOK.
+Une nouvelle clé OpenRouter peut avoir son propre suivi et son propre plafond, mais les crédits restent partagés au niveau du compte/workspace. Elle ne crée donc pas une facturation globale indépendante. Cette consommation est séparée d'un abonnement ChatGPT et d'une facturation directe OpenAI, sauf BYOK explicitement configuré.
 
-## Sécurité et maintenance
+## Vérifier
 
-- Ne jamais journaliser une clé, une réponse complète ou une référence de correction ; faire tourner immédiatement une clé exposée.
-- Ne publier ni le classeur, ni `keyword-overrides.js`, ni `netlify/`, `supabase/`, `tests/` ou `docs/` : le build vérifie cette exclusion.
-- Garder RLS activé après toute migration, tester les trois rôles d'accès, et limiter les variables de service à Netlify.
-- Mettre à jour les prix, limites et modèles avant chaque ouverture significative ; suivre taux d'échec, modes réellement utilisés et coût par correction.
-- Exécuter la suite ci-dessus avant une version. Les tests ne nécessitent aucun appel OpenRouter réel ; les réponses y sont simulées.
+Suite sans socket locale :
+
+```bash
+for test in tests/*-smoke.mjs; do
+  [ "$test" = "tests/local-correction-contract-smoke.mjs" ] || node "$test" || exit 1
+done
+node scripts/build-static.mjs
+git diff --check
+```
+
+Contrat HTTP local, à exécuter dans un environnement autorisant le loopback :
+
+```bash
+node tests/local-correction-contract-smoke.mjs
+```
+
+La suite utilise des fakes : elle ne dépense aucun crédit et ne contacte pas OpenRouter/Supabase live. `OPENROUTER_UNAVAILABLE` signifie que les réponses fournisseur n'ont pas été obtenues/validées dans le budget. Les logs `PRIVATE_QUESTION_FILE_UNAVAILABLE`, `QUESTION_BANK_ERROR` et `CORRECTION_INTERNAL_ERROR` permettent de distinguer corpus indisponible, corpus invalide et panne interne sans exposer de donnée utilisateur.
+
+## État d'avancement — 23 août 2026
+
+- Commits versionnés jusqu'à `75a7610` : parcours Questions/OpenRouter, Cas pratiques, persistance/déploiement, documentation initiale, oracle financier indépendant (`42a378c`) et frontière OpenRouter sécurisée (`75a7610`).
+- Correctifs B2/B2.1/B3.1 et vague C présents dans le worktree : deadline complète, loader partagé à waiters indépendants, trajet local Bearer, limites chaudes, atomicité, retour auth Case, i18n des 9 cas et historique FR.
+- Vérification la plus récente : **24/24 smokes sans socket**, oracle **9/9** au maximum attendu avec **10 000 graines**, build statique **34 fichiers**, syntaxe/diff/secrets verts.
+- Ces derniers correctifs ne sont pas commités : les écritures Git nécessitant une autorisation sont bloquées par la limite de l'environnement jusqu'au **29 août 2026**.
+- QA visuelle desktop/390 px non exécutée faute de navigateur ; smoke loopback non rejoué après les dernières passes faute d'autorisation ; CLI Netlify absente ; aucun déploiement, appel OpenRouter réel ou test Supabase live n'est revendiqué.
 
 ## Sessions payantes — roadmap
 
-Le paiement est hors périmètre. Avant de le construire, définir des entitlements côté serveur, un solde de crédits atomique, un checkout fournisseur, un webhook vérifié qui alimente un ledger immuable, et une clé d'idempotence à chaque crédit/débit. Le droit d'effectuer une correction devra être contrôlé dans la Function avant OpenRouter, avec réconciliation du ledger et gestion des remboursements. Ne pas ajouter un bouton, SDK de paiement ou table de facturation tant que ces règles métier et le fournisseur ne sont pas décidés.
+Le paiement est volontairement hors périmètre. L'objectif produit est de monétiser à terme l'accès aux sessions d'entraînement Questions et Cas. Avant d'ajouter un bouton ou un SDK de paiement, il faut : entitlements contrôlés côté serveur, solde de crédits atomique, checkout fournisseur, webhook signé, ledger immuable, idempotence de chaque crédit/débit, réconciliation et remboursements. La Function devra vérifier le droit à la session avant toute consommation OpenRouter.

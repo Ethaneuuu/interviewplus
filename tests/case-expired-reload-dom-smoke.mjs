@@ -37,7 +37,7 @@ const pageUrl = pathToFileURL(path.join(projectRoot, "assets/js/case-session.js"
 pageUrl.searchParams.set("expired-reload", String(Date.now()));
 await import(pageUrl.href);
 
-equal(elements.caseTitle.textContent, statement.title);
+equal(elements.caseTitle.textContent, "Évaluation DCF | Débutant");
 ok(elements.caseMessage.textContent.includes("sauvegardées"));
 equal(elements.finishCase.disabled, false);
 ok(elements.finishCase.listeners.click);

@@ -24,4 +24,15 @@ await rejects(
   /CORRECTION_TIMEOUT/,
 );
 
+let suspendedFetchCalls = 0;
+await rejects(
+  () => requestCorrection({ type: "case" }, {
+    fetchImpl: async () => { suspendedFetchCalls += 1; return Response.json({}); },
+    getSession: async () => new Promise(() => {}),
+    timeoutMs: 10,
+  }),
+  /CORRECTION_TIMEOUT/,
+);
+equal(suspendedFetchCalls, 0, "A suspended session lookup must expire before fetch");
+
 console.log(JSON.stringify({ ok: true, bearer: "attached", timeout: "bounded" }));

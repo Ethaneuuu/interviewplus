@@ -13,6 +13,7 @@ let correctionCalls = 0;
 let failRefresh = false;
 let failPostUpsertPersist = false;
 let failNextStatePersist = false;
+let failInitialPostUpsertPersist = true;
 
 globalThis.window = globalThis;
 globalThis.XLSX = XLSX;
@@ -54,6 +55,10 @@ globalThis.fetch = async (url, options = {}) => {
   }
   if (value === "/api/sessions" && options.method === "POST") {
     sessions = [JSON.parse(options.body).session];
+    if (failInitialPostUpsertPersist) {
+      failInitialPostUpsertPersist = false;
+      failNextStatePersist = true;
+    }
     return Response.json({ session: sessions[0] });
   }
   if (value === "/api/sessions") {
@@ -85,6 +90,7 @@ const started = await store.startSession({ questionCount: 2, questionLanguage: "
 started.questions.forEach((question, index) => store.saveAnswer(index, question.expectedAnswer));
 const completed = await store.finalizeSession();
 assert(completed.questions.every((question) => question.score === 88), "Initial remote correction failed");
+assert(sessions[0].status === "review", "Initial remote upsert did not commit review state");
 
 failRefresh = true;
 failPostUpsertPersist = true;

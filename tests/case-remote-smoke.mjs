@@ -8,12 +8,20 @@ const storage = new Map([["interviewplus-server-token", "token"]]);
 let sessions = [];
 let failPost = true;
 let failRefresh = false;
+let failNextPersist = false;
+let failInitialPostUpsertPersist = true;
 
 globalThis.window = globalThis;
 window.INTERVIEWPLUS_CONFIG = { backendMode: "server" };
 globalThis.localStorage = {
   getItem: (key) => storage.get(key) || null,
-  setItem: (key, value) => storage.set(key, String(value)),
+  setItem: (key, value) => {
+    if (key === "interviewplus-state-v4" && failNextPersist) {
+      failNextPersist = false;
+      throw new Error("PERSIST_FAILED");
+    }
+    storage.set(key, String(value));
+  },
   removeItem: (key) => storage.delete(key),
 };
 globalThis.fetch = async (url, options = {}) => {
@@ -23,6 +31,10 @@ globalThis.fetch = async (url, options = {}) => {
   if (value === "/api/sessions" && options.method === "POST") {
     if (failPost) return Response.json({ error: "SESSION_DOWN" }, { status: 503 });
     sessions = [JSON.parse(options.body).session];
+    if (failInitialPostUpsertPersist) {
+      failInitialPostUpsertPersist = false;
+      failNextPersist = true;
+    }
     return Response.json({ session: sessions[0] });
   }
   if (value === "/api/sessions") {

@@ -1,5 +1,8 @@
 import { deepEqual, equal, rejects } from "node:assert/strict";
+import fs from "node:fs/promises";
+import { createHandler } from "../netlify/functions/correct.mjs";
 import { createCorrectionService } from "../netlify/functions/lib/correction-service.mjs";
+import { createQuestionBankLoader } from "../netlify/functions/lib/question-bank.mjs";
 import { generateCaseStatement } from "../assets/js/case-templates.js";
 import { calculateCaseSolution, gradeCase } from "../netlify/functions/lib/case-grader.mjs";
 
@@ -151,7 +154,86 @@ const timeoutService = createCorrectionService({
 equal((await timeoutService.correct(payload)).score, 82);
 equal(timeoutCalls.join(","), "openai/gpt-oss-120b:free,openai/gpt-oss-120b");
 
+let deadlineClock = 40;
+const deadlineCalls = [];
+const deadlineService = createCorrectionService({
+  now: () => deadlineClock,
+  fetchImpl: async (_url, options) => {
+    const model = JSON.parse(options.body).model;
+    deadlineCalls.push(model);
+    deadlineClock += 45;
+    return model.endsWith(":free") ? new Response("limited", { status: 429 }) : response();
+  },
+  questionBankLoader: async () => bank,
+  env: { ...env, OPENROUTER_TIMEOUT_MS: "50", OPENROUTER_PAID_MIN_BUDGET_MS: "20", CORRECTION_RETURN_MARGIN_MS: "5" },
+});
+await rejects(() => deadlineService.correct(payload, { deadline: 100 }), /OPENROUTER_UNAVAILABLE/);
+equal(deadlineCalls.join(","), "openai/gpt-oss-120b:free", "Paid fallback must not start after auth/free consume its budget");
+
+let loaderSignal;
+const suspendedLoaderService = createCorrectionService({
+  fetchImpl: async () => { throw new Error("PROVIDER_MUST_NOT_START"); },
+  questionBankLoader: async (options) => {
+    loaderSignal = options?.signal;
+    return new Promise(() => {});
+  },
+  env,
+});
+equal(
+  await settleWithin(suspendedLoaderService.correct(payload, { deadline: Date.now() + 10 }), 50),
+  "OPENROUTER_UNAVAILABLE",
+  "A suspended question bank must terminate at the global deadline",
+);
+equal(loaderSignal instanceof AbortSignal, true, "The global deadline signal must reach the question-bank loader");
+
+let suspendedBodyCalls = 0;
+const suspendedBodyService = createCorrectionService({
+  fetchImpl: async () => ({
+    ok: true,
+    json: async () => {
+      suspendedBodyCalls += 1;
+      return new Promise(() => {});
+    },
+  }),
+  questionBankLoader: async () => bank,
+  env: { ...env, CORRECTION_RETURN_MARGIN_MS: "0", OPENROUTER_TIMEOUT_MS: "50" },
+});
+equal(
+  await settleWithin(suspendedBodyService.correct(payload, { deadline: Date.now() + 10 }), 50),
+  "OPENROUTER_UNAVAILABLE",
+  "OpenRouter headers without a response body must terminate at the global deadline",
+);
+equal(suspendedBodyCalls, 1);
+
+const workbookBytes = await fs.readFile(new URL("../Questions_InterviewPlus_Bilingual.xlsx", import.meta.url));
+let sharedStorageCalls = 0;
+const sharedLoader = createQuestionBankLoader({
+  env: { ...env, SUPABASE_URL: "https://project.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "test", PRIVATE_QUESTION_LOAD_TIMEOUT_MS: "500" },
+  fetchImpl: async (_url, options) => new Promise((resolve, reject) => {
+    sharedStorageCalls += 1;
+    const timer = setTimeout(() => resolve(new Response(workbookBytes, { status: 200 })), 100);
+    options.signal.addEventListener("abort", () => { clearTimeout(timer); reject(options.signal.reason); }, { once: true });
+  }),
+});
+const sharedService = createCorrectionService({
+  questionBankLoader: sharedLoader,
+  fetchImpl: async () => response(),
+  env: { ...env, CORRECTION_RETURN_MARGIN_MS: "0" },
+});
+const firstHandler = createHandler({ env: { CORRECTION_SERVER_TIMEOUT_MS: "60" }, authorizer: async () => ({ id: "user-1" }), service: sharedService });
+const secondHandler = createHandler({ env: { CORRECTION_SERVER_TIMEOUT_MS: "1000" }, authorizer: async () => ({ id: "user-2" }), service: sharedService });
+const correctionEvent = (sessionId) => ({ httpMethod: "POST", headers: { authorization: "Bearer test" }, body: JSON.stringify({ ...payload, sessionId }) });
+const firstConcurrent = firstHandler(correctionEvent("first-waiter"));
+await new Promise((resolve) => setTimeout(resolve, 50));
+const secondConcurrent = secondHandler(correctionEvent("second-waiter"));
+const [firstConcurrentResponse, secondConcurrentResponse] = await Promise.all([firstConcurrent, secondConcurrent]);
+equal(firstConcurrentResponse.statusCode, 502);
+equal(secondConcurrentResponse.statusCode, 200, "A later waiter must survive the first request deadline");
+equal(sharedStorageCalls, 1, "Concurrent waiters must share one independent cold-start load");
+
 const budgetCalls = [];
+const budgetWarnings = [];
+const originalWarn = console.warn;
 const budgetService = createCorrectionService({
   fetchImpl: async (_url, options) => {
     budgetCalls.push(JSON.parse(options.body).model);
@@ -160,9 +242,15 @@ const budgetService = createCorrectionService({
   questionBankLoader: async () => bank,
   env: { ...env, OPENROUTER_PAID_MAX_REQUESTS_PER_HOUR: "1" },
 });
-await budgetService.correct(payload);
-await rejects(() => budgetService.correct(payload), /OPENROUTER_UNAVAILABLE/);
+console.warn = (...values) => budgetWarnings.push(values);
+try {
+  await budgetService.correct(payload);
+  await rejects(() => budgetService.correct(payload), /OPENROUTER_UNAVAILABLE/);
+} finally {
+  console.warn = originalWarn;
+}
 equal(budgetCalls.join(","), "openai/gpt-oss-120b:free,openai/gpt-oss-120b,openai/gpt-oss-120b:free");
+deepEqual(budgetWarnings, [["INTERVIEWPLUS_OPENROUTER_BUDGET_ALERT", 1, 1]]);
 
 const usageLogs = [];
 const originalInfo = console.info;
@@ -218,5 +306,15 @@ equal(emptyRecommendation.score, 95);
 await rejects(() => narrativeService.correct({ ...casePayload, seed: -1 }), /INVALID_CASE_SEED/);
 await rejects(() => narrativeService.correct({ ...casePayload, answers: { unknown_output: 1 } }), /INVALID_CASE_ANSWER/);
 await rejects(() => narrativeService.correct({ ...casePayload, recommendation: "x".repeat(2001) }), /INVALID_CASE_RECOMMENDATION/);
+
+async function settleWithin(promise, timeoutMs) {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve("still-pending"), timeoutMs);
+    promise.then(
+      () => { clearTimeout(timeout); resolve("resolved"); },
+      (error) => { clearTimeout(timeout); resolve(String(error?.message || error)); },
+    );
+  });
+}
 
 console.log(JSON.stringify({ ok: true, fallback: "free-to-paid", validation: "ok" }));

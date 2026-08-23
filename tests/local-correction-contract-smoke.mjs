@@ -17,6 +17,9 @@ server.stderr.on("data", (chunk) => { output += chunk; });
 try {
   await waitForServer();
   const token = await signUp(port);
+  const localConfig = await (await fetch(`http://127.0.0.1:${port}/assets/js/config.js`)).text();
+  ok(localConfig.includes('backendMode: "server"'), "The local server must configure its browser for local-token auth");
+  await browserCorrectCase(token);
 
   const method = await fetch(`http://127.0.0.1:${port}/api/correct`);
   equal(method.status, 405);
@@ -103,4 +106,24 @@ async function signUp(serverPort) {
   });
   equal(response.status, 200);
   return (await response.json()).token;
+}
+
+async function browserCorrectCase(token) {
+  const browserStorage = new Map([["interviewplus-server-token", token]]);
+  globalThis.window = { INTERVIEWPLUS_CONFIG: { backendMode: "server", supabaseUrl: "", supabaseAnonKey: "" } };
+  globalThis.localStorage = {
+    getItem(key) { return browserStorage.get(key) || null; },
+    setItem(key, value) { browserStorage.set(key, String(value)); },
+    removeItem(key) { browserStorage.delete(key); },
+  };
+  const { requestCorrection } = await import(`../assets/js/correction-client.js?local-browser=${Date.now()}`);
+  let bearer;
+  const result = await requestCorrection({ type: "case", sessionId: "browser-case", theme: "dcf", difficulty: "easy", seed: 1, answers: {} }, {
+    fetchImpl: async (url, options) => {
+      bearer = options.headers.Authorization;
+      return fetch(`http://127.0.0.1:${port}${url}`, options);
+    },
+  });
+  equal(bearer, `Bearer ${token}`);
+  equal(result.mode, "deterministic");
 }

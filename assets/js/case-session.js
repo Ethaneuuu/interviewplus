@@ -1,5 +1,5 @@
 import { continueAsGuest, finalizeCaseSession, getActiveSession, getCurrentUser, initializeApp, requireAuthorizedAccess, saveCaseAnswer } from "./store.js";
-import { t } from "./i18n.js";
+import { caseInputLabel, caseOutputLabel, caseSectionLabel, caseSessionInstructions, caseSessionTitle, t } from "./i18n.js";
 
 const title = document.getElementById("caseTitle");
 const instructions = document.getElementById("caseInstructions");
@@ -32,8 +32,8 @@ function render() {
     window.location.href = `./results.html?session=${encodeURIComponent(session.id)}`;
     return;
   }
-  title.textContent = statement.title;
-  instructions.textContent = statement.instructions;
+  title.textContent = caseSessionTitle(statement.theme, statement.difficulty);
+  instructions.textContent = caseSessionInstructions(statement.theme, statement.difficulty, statement.instructions);
   timer.textContent = formatTime(session.remainingMs);
   renderStatement(statement);
   renderAnswers(statement, answers);
@@ -50,16 +50,16 @@ function renderStatement(statement) {
   statementRoot.append(heading);
   statement.sections.forEach((section) => {
     const sectionTitle = document.createElement("h3");
-    sectionTitle.textContent = section.title;
+    sectionTitle.textContent = caseSectionLabel(section.id, section.title);
     const table = document.createElement("table");
     table.className = "case-table";
-    table.innerHTML = "<thead><tr><th scope=\"col\">Poste</th><th scope=\"col\">Valeur</th></tr></thead>";
+    table.innerHTML = `<thead><tr><th scope="col">${t("Poste", "Item")}</th><th scope="col">${t("Valeur", "Value")}</th></tr></thead>`;
     const body = document.createElement("tbody");
     section.fields.forEach((field) => {
       const row = document.createElement("tr");
       const label = document.createElement("th");
       label.scope = "row";
-      label.textContent = field.label;
+      label.textContent = caseInputLabel(field.id, field.label);
       const value = document.createElement("td");
       value.textContent = formatValue(field.value, field.format);
       row.append(label, value);
@@ -77,7 +77,7 @@ function renderAnswers(statement, answers) {
     label.className = "field";
     label.htmlFor = `case-answer-${field.id}`;
     const labelText = document.createElement("span");
-    labelText.textContent = field.label;
+    labelText.textContent = caseOutputLabel(field.id, field.label);
     const input = document.createElement("input");
     input.id = label.htmlFor;
     input.type = "number";

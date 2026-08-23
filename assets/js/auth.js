@@ -6,6 +6,7 @@ import {
   loginUser,
   requestPasswordReset,
   registerUser,
+  safeAuthReturnDestination,
 } from "./store.js";
 import { t } from "./i18n.js";
 
@@ -135,8 +136,7 @@ function redirectAfterAuth() {
 
 function getReturnDestination() {
   const requested = new URLSearchParams(window.location.search).get("returnTo");
-  const allowedPages = new Set(["setup.html", "session.html", "results.html", "profile.html"]);
-  return allowedPages.has(requested) ? requested : "setup.html";
+  return safeAuthReturnDestination(requested);
 }
 
 function bindPasswordToggles() {

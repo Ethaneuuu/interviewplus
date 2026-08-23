@@ -188,9 +188,15 @@ export function isRestrictedAccess() {
 
 export function requireAuthorizedAccess(returnTo = "setup.html") {
   if (!isRestrictedAccess() || currentUser) return;
-  const destination = encodeURIComponent(returnTo);
+  const destination = encodeURIComponent(safeAuthReturnDestination(returnTo));
   window.location.replace(`./auth.html?returnTo=${destination}`);
   throw new Error("ACCESS_REDIRECT");
+}
+
+export function safeAuthReturnDestination(requested) {
+  return new Set(["setup.html", "session.html", "results.html", "profile.html", "case-setup.html", "case-session.html"]).has(requested)
+    ? requested
+    : "setup.html";
 }
 
 export async function continueAsGuest() {
@@ -533,21 +539,7 @@ export async function finalizeCaseSession() {
   completed.status = "review";
   completed.completedAt = new Date().toISOString();
 
-  if (isRemoteBackendEnabled() && !isGuestUser(currentUser)) {
-    await upsertRemoteSession(completed);
-    replaceRemoteSession(completed);
-    if (currentUser) {
-      try {
-        remoteSessionsCache = await listRemoteSessions(currentUser.id);
-      } catch {
-        // The upsert succeeded; retain the committed session until a later refresh.
-      }
-    }
-  } else {
-    upsertLocalSession(completed);
-  }
-  state.activeSession = completed;
-  persist();
+  await commitCompletedSession(completed);
   return getActiveSession();
 }
 
@@ -716,6 +708,10 @@ async function syncActiveSession(forceFinalize = false) {
   completed.status = "review";
   completed.completedAt = new Date().toISOString();
 
+  await commitCompletedSession(completed);
+}
+
+async function commitCompletedSession(completed) {
   if (isRemoteBackendEnabled() && !isGuestUser(currentUser)) {
     await upsertRemoteSession(completed);
     replaceRemoteSession(completed);
@@ -723,15 +719,25 @@ async function syncActiveSession(forceFinalize = false) {
       try {
         remoteSessionsCache = await listRemoteSessions(currentUser.id);
       } catch {
-        // The upsert succeeded; retain the committed session until a later refresh.
+        // The remote upsert is the commit point; refresh can reconcile later.
       }
     }
-  } else {
-    upsertLocalSession(completed);
+    state.activeSession = structuredClone(completed);
+    try {
+      persist();
+    } catch {
+      // The remote upsert remains authoritative when the local cache is unavailable.
+    }
+    return;
   }
 
-  state.activeSession = completed;
-  persist();
+  const nextState = structuredClone(state);
+  const index = nextState.localSessions.findIndex((session) => session.id === completed.id);
+  if (index >= 0) nextState.localSessions[index] = structuredClone(completed);
+  else nextState.localSessions.unshift(structuredClone(completed));
+  nextState.activeSession = structuredClone(completed);
+  persist(nextState);
+  state = nextState;
 }
 
 async function ensureDatasetLoaded() {
@@ -1176,15 +1182,6 @@ function buildSessionView(session) {
     answeredCount: cloned.questions.filter((question) => question.candidateAnswer.trim()).length,
     remainingMs: cloned.status === "running" ? Math.max(0, new Date(cloned.endsAt).getTime() - Date.now()) : 0,
   };
-}
-
-function upsertLocalSession(session) {
-  const index = state.localSessions.findIndex((item) => item.id === session.id);
-  if (index >= 0) {
-    state.localSessions[index] = structuredClone(session);
-  } else {
-    state.localSessions.unshift(structuredClone(session));
-  }
 }
 
 function replaceRemoteSession(session) {

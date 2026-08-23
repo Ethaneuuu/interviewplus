@@ -354,6 +354,7 @@ export function mapRemoteSession(row) {
   const isCase = row.session_type === "case";
   const caseJson = row.case_json && typeof row.case_json === "object" && !Array.isArray(row.case_json) ? row.case_json : {};
   const scoreJson = row.score_json && typeof row.score_json === "object" && !Array.isArray(row.score_json) ? row.score_json : {};
+  const questions = isCase ? [] : (Array.isArray(row.questions_json) ? row.questions_json : []);
   return {
     id: row.id,
     userId: row.user_id,
@@ -370,10 +371,11 @@ export function mapRemoteSession(row) {
     config: {
       theme: row.theme,
       ...(row.difficulty ? { difficulty: row.difficulty } : {}),
+      ...(!isCase ? { questionLanguage: questions[0]?.language || "en" } : {}),
       questionCount: row.question_count,
       timerMinutes: row.timer_minutes,
     },
-    questions: isCase ? [] : (Array.isArray(row.questions_json) ? row.questions_json : []),
+    questions,
     ...(isCase ? {
       caseData: {
         ...caseJson,

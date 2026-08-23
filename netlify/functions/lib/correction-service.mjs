@@ -5,28 +5,43 @@ const DEFAULT_PAID_MODEL = "openai/gpt-oss-120b";
 import { CASE_DIFFICULTIES, CASE_THEMES, generateCaseStatement } from "../../../assets/js/case-templates.js";
 import { calculateCaseSolution, gradeCase } from "./case-grader.mjs";
 
-export function createCorrectionService({ fetchImpl = fetch, questionBankLoader, env = process.env } = {}) {
+export function createCorrectionService({ fetchImpl = fetch, questionBankLoader, env = process.env, now = Date.now } = {}) {
   const paidRequests = [];
   return {
-    async correct(payload) {
-      if (payload?.type === "case") return correctCase({ payload, fetchImpl, env, paidRequests });
-      const items = validatePayload(payload);
-      const bank = await questionBankLoader();
-      const questions = items.map((item) => resolveQuestion(bank, item));
-      const messages = buildMessages(questions);
-      const models = [env.OPENROUTER_FREE_MODEL || DEFAULT_FREE_MODEL, env.OPENROUTER_PAID_MODEL || DEFAULT_PAID_MODEL];
-
-      for (const [index, model] of models.entries()) {
-        if (index > 0 && !consumePaidBudget(paidRequests, env)) continue;
-        const result = await requestCorrection(fetchImpl, env, model, messages, items.map(({ questionId }) => questionId));
-        if (result) return normalize(result, model);
+    async correct(payload, { deadline = now() + serverTimeout(env) } = {}) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(new Error("CORRECTION_DEADLINE")), Math.max(1, deadline - now()));
+      try {
+        return await withAbort(correctWithinDeadline({ payload, fetchImpl, questionBankLoader, env, paidRequests, deadline, now, signal: controller.signal }), controller.signal);
+      } catch (error) {
+        if (controller.signal.aborted) return deadlineFallback(payload);
+        throw error;
+      } finally {
+        clearTimeout(timeout);
       }
-      throw new Error("OPENROUTER_UNAVAILABLE");
     },
   };
 }
 
-async function correctCase({ payload, fetchImpl, env, paidRequests }) {
+async function correctWithinDeadline({ payload, fetchImpl, questionBankLoader, env, paidRequests, deadline, now, signal }) {
+  if (payload?.type === "case") return correctCase({ payload, fetchImpl, env, paidRequests, deadline, now, signal });
+  const items = validatePayload(payload);
+  const bank = await questionBankLoader({ signal, deadline });
+  const questions = items.map((item) => resolveQuestion(bank, item));
+  const messages = buildMessages(questions);
+  const models = [env.OPENROUTER_FREE_MODEL || DEFAULT_FREE_MODEL, env.OPENROUTER_PAID_MODEL || DEFAULT_PAID_MODEL];
+
+  for (const [index, model] of models.entries()) {
+    const timeoutMs = providerTimeout(env, deadline, now, index > 0);
+    if (!timeoutMs) continue;
+    if (index > 0 && !consumePaidBudget(paidRequests, env)) continue;
+    const result = await requestCorrection(fetchImpl, env, model, messages, items.map(({ questionId }) => questionId), timeoutMs, signal);
+    if (result) return normalize(result, model);
+  }
+  throw new Error("OPENROUTER_UNAVAILABLE");
+}
+
+async function correctCase({ payload, fetchImpl, env, paidRequests, deadline, now, signal }) {
   const { theme, difficulty, seed, answers, recommendation } = validateCasePayload(payload);
   const statement = generateCaseStatement({ theme, difficulty, seed });
   if (!recommendation.trim()) return { ...gradeCase({ theme, difficulty, seed, answers: { ...answers, recommendation } }), mode: "deterministic" };
@@ -35,11 +50,23 @@ async function correctCase({ payload, fetchImpl, env, paidRequests }) {
   const messages = buildNarrativeMessages(statement, solution, recommendation);
   const models = [env.OPENROUTER_FREE_MODEL || DEFAULT_FREE_MODEL, env.OPENROUTER_PAID_MODEL || DEFAULT_PAID_MODEL];
   for (const [index, model] of models.entries()) {
+    const timeoutMs = providerTimeout(env, deadline, now, index > 0);
+    if (!timeoutMs) continue;
     if (index > 0 && !consumePaidBudget(paidRequests, env)) continue;
-    const narrative = await requestNarrative(fetchImpl, env, model, messages);
+    const narrative = await requestNarrative(fetchImpl, env, model, messages, timeoutMs, signal);
     if (narrative) return { ...gradeCase({ theme, difficulty, seed, answers: { ...answers, recommendation }, narrativeScore: narrative.score }), mode: "openrouter", provider: "openrouter", model, narrativeStatus: "scored", feedback: narrative.feedback };
   }
   return { ...gradeCase({ theme, difficulty, seed, answers: { ...answers, recommendation } }), mode: "deterministic", narrativeStatus: "unavailable" };
+}
+
+function deadlineFallback(payload) {
+  if (payload?.type !== "case") throw new Error("OPENROUTER_UNAVAILABLE");
+  const { theme, difficulty, seed, answers, recommendation } = validateCasePayload(payload);
+  return {
+    ...gradeCase({ theme, difficulty, seed, answers: { ...answers, recommendation } }),
+    mode: "deterministic",
+    ...(recommendation.trim() ? { narrativeStatus: "unavailable" } : {}),
+  };
 }
 
 function validatePayload(payload) {
@@ -116,9 +143,9 @@ function buildNarrativeMessages(statement, solution, recommendation) {
   ];
 }
 
-async function requestCorrection(fetchImpl, env, model, messages, expectedIds) {
+async function requestCorrection(fetchImpl, env, model, messages, expectedIds, timeoutMs, deadlineSignal) {
   try {
-    const response = await fetchWithTimeout(fetchImpl, OPENROUTER_URL, {
+    return await fetchWithTimeout(fetchImpl, OPENROUTER_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${env.OPENROUTER_API_KEY || ""}`,
@@ -130,31 +157,33 @@ async function requestCorrection(fetchImpl, env, model, messages, expectedIds) {
         max_tokens: Math.min(2500, 200 + expectedIds.length * 100),
         response_format: questionResponseFormat(),
       }),
-    }, openRouterTimeout(env));
-    if (!response.ok) return null;
-    const data = await response.json();
-    recordUsage(data?.usage, model);
-    const content = data?.choices?.[0]?.message?.content;
-    const parsed = typeof content === "string" ? JSON.parse(content) : null;
-    return validItems(parsed?.items, expectedIds) ? parsed.items : null;
+    }, timeoutMs, deadlineSignal, async (response, signal) => {
+      if (!response.ok) return null;
+      const data = await withAbort(response.json(), signal);
+      recordUsage(data?.usage, model);
+      const content = data?.choices?.[0]?.message?.content;
+      const parsed = typeof content === "string" ? JSON.parse(content) : null;
+      return validItems(parsed?.items, expectedIds) ? parsed.items : null;
+    });
   } catch {
     return null;
   }
 }
 
-async function requestNarrative(fetchImpl, env, model, messages) {
+async function requestNarrative(fetchImpl, env, model, messages, timeoutMs, deadlineSignal) {
   try {
-    const response = await fetchWithTimeout(fetchImpl, OPENROUTER_URL, {
+    return await fetchWithTimeout(fetchImpl, OPENROUTER_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${env.OPENROUTER_API_KEY || ""}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model, messages, max_tokens: 250, response_format: narrativeResponseFormat() }),
-    }, openRouterTimeout(env));
-    if (!response.ok) return null;
-    const data = await response.json();
-    recordUsage(data?.usage, model);
-    const content = data?.choices?.[0]?.message?.content;
-    const parsed = typeof content === "string" ? JSON.parse(content) : null;
-    return Number.isFinite(parsed?.score) && parsed.score >= 0 && parsed.score <= 100 && validText(parsed.feedback, 1000) ? parsed : null;
+    }, timeoutMs, deadlineSignal, async (response, signal) => {
+      if (!response.ok) return null;
+      const data = await withAbort(response.json(), signal);
+      recordUsage(data?.usage, model);
+      const content = data?.choices?.[0]?.message?.content;
+      const parsed = typeof content === "string" ? JSON.parse(content) : null;
+      return Number.isFinite(parsed?.score) && parsed.score >= 0 && parsed.score <= 100 && validText(parsed.feedback, 1000) ? parsed : null;
+    });
   } catch {
     return null;
   }
@@ -182,18 +211,50 @@ function validTextList(value) {
 }
 
 function openRouterTimeout(env) {
-  const configured = Number(env.OPENROUTER_TIMEOUT_MS || 8000);
-  return Number.isFinite(configured) ? Math.min(30000, Math.max(1, configured)) : 8000;
+  const configured = Number(env.OPENROUTER_TIMEOUT_MS || 6000);
+  return Number.isFinite(configured) ? Math.min(15000, Math.max(1, configured)) : 6000;
 }
 
-async function fetchWithTimeout(fetchImpl, url, options, timeoutMs) {
+function serverTimeout(env) {
+  const configured = Number(env.CORRECTION_SERVER_TIMEOUT_MS || 17500);
+  return Number.isFinite(configured) ? Math.min(19000, Math.max(1000, configured)) : 17500;
+}
+
+function providerTimeout(env, deadline, now, paid) {
+  const margin = boundedNonNegative(env.CORRECTION_RETURN_MARGIN_MS, 500, 5000);
+  const remaining = deadline - now() - margin;
+  const minimum = boundedNonNegative(env.OPENROUTER_PAID_MIN_BUDGET_MS, 2000, 10000);
+  if (remaining <= 0 || (paid && remaining < minimum)) return 0;
+  return Math.min(openRouterTimeout(env), remaining);
+}
+
+function boundedNonNegative(value, fallback, maximum) {
+  const configured = Number(value);
+  return Number.isFinite(configured) && configured >= 0 ? Math.min(maximum, configured) : fallback;
+}
+
+async function fetchWithTimeout(fetchImpl, url, options, timeoutMs, deadlineSignal, consume) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(new Error("OPENROUTER_TIMEOUT")), timeoutMs);
+  const signal = AbortSignal.any([deadlineSignal, controller.signal]);
   try {
-    return await fetchImpl(url, { ...options, signal: controller.signal });
+    const response = await withAbort(fetchImpl(url, { ...options, signal }), signal);
+    return await consume(response, signal);
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function withAbort(promise, signal) {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason || new Error("CORRECTION_DEADLINE"));
+    if (signal.aborted) return abort();
+    signal.addEventListener("abort", abort, { once: true });
+    Promise.resolve(promise).then(
+      (value) => { signal.removeEventListener("abort", abort); resolve(value); },
+      (error) => { signal.removeEventListener("abort", abort); reject(error); },
+    );
+  });
 }
 
 function consumePaidBudget(requests, env) {
@@ -203,6 +264,9 @@ function consumePaidBudget(requests, env) {
   while (requests.length && now - requests[0] >= 3600000) requests.shift();
   if (requests.length >= limit) return false;
   requests.push(now);
+  if (requests.length === Math.max(1, Math.ceil(limit * 0.8))) {
+    console.warn("INTERVIEWPLUS_OPENROUTER_BUDGET_ALERT", requests.length, limit);
+  }
   return true;
 }
 

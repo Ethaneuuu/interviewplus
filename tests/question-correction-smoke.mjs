@@ -99,8 +99,16 @@ const aiSession = await store.startSession({
   timerMinutes: 2,
 });
 aiSession.questions.forEach((question, index) => store.saveAnswer(index, question.expectedAnswer));
+failAfterCorrection = true;
+await store.finalizeSession().then(
+  () => { throw new Error("Initial local finalization ignored a failed durable write"); },
+  (error) => assert(error.message === "PERSIST_FAILED", `Expected PERSIST_FAILED, got ${error.message}`),
+);
+assert(store.getActiveSession().status === "running", "Failed initial persistence changed the in-memory question draft");
+assert(JSON.parse(storage.get("interviewplus-state-v4")).activeSession.status === "running", "Failed initial persistence changed the durable question draft");
+failAfterCorrection = false;
 const completed = await store.finalizeSession();
-assert(correctionCalls === 1, `Expected one correction request, got ${correctionCalls}`);
+assert(correctionCalls === 2, `Expected retry after failed persistence, got ${correctionCalls} correction calls`);
 assert(completed.questions.every((question) => question.score === 88), "AI score was not stored");
 assert(completed.questions.every((question) => question.strengths.includes("concept reconnu")), "Recognized concepts were not mapped to strengths");
 assert(completed.questions.every((question) => question.missingPoints.includes("élément manquant")), "Missing elements were not mapped to missing points");
@@ -117,7 +125,7 @@ const nonCorrection = (question) => {
 const beforeRecorrection = completed.questions.map(nonCorrection);
 responseScore = 91;
 const recorrected = await store.recorrectSession(completed.id);
-assert(correctionCalls === 2, "Recorrection did not make a correction request");
+assert(correctionCalls === 3, "Recorrection did not make a correction request");
 assert(recorrected.questions.every((question) => question.score === 91), "Recorrection did not replace correction fields");
 assert(JSON.stringify(recorrected.questions.map(nonCorrection)) === JSON.stringify(beforeRecorrection), "Successful recorrection changed fields outside correction data");
 

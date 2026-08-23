@@ -3,6 +3,8 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createCorrectionService } from "./netlify/functions/lib/correction-service.mjs";
+import { createQuestionBankLoader } from "./netlify/functions/lib/question-bank.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(readArg("--port") || process.env.PORT || 4173);
@@ -23,6 +25,7 @@ const publicRootFiles = new Set([
   "Questions_InterviewPlus_Bilingual.xlsx",
 ]);
 let localQuestionBankLoader;
+const localCorrectionService = createCorrectionService({ questionBankLoader: loadLocalQuestionBank, env: process.env });
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
@@ -84,20 +87,8 @@ async function handleApiRoute(request, response, pathname) {
       return;
     }
 
-    const [{ createQuestionBankLoader }, { createCorrectionService }] = await Promise.all([
-      import("./netlify/functions/lib/question-bank.mjs"),
-      import("./netlify/functions/lib/correction-service.mjs"),
-    ]);
     try {
-      const questionBankLoader = async () => {
-        if (!localQuestionBankLoader) {
-          localQuestionBankLoader = createQuestionBankLoader({
-            workbookBytes: await fs.readFile(path.join(projectRoot, "Questions_InterviewPlus_Bilingual.xlsx")),
-          });
-        }
-        return localQuestionBankLoader();
-      };
-      const result = await createCorrectionService({ questionBankLoader, env: process.env }).correct(body);
+      const result = await localCorrectionService.correct(body);
       json(response, 200, result);
     } catch (error) {
       const code = String(error?.message || "CORRECTION_UNAVAILABLE");
@@ -219,6 +210,11 @@ async function serveStaticFile(response, pathname) {
   const publicPath = isModernRequest ? pathname.replace(/^\/modern\/?/, "") : pathname.replace(/^\/+/, "");
   const relativePath = publicPath || "index.html";
 
+  if (!isModernRequest && relativePath === "assets/js/config.js") {
+    javascript(response, 200, 'window.INTERVIEWPLUS_CONFIG = { backendMode: "server", restrictedAccess: true, allowPublicSignup: true, allowGuestAccess: false };\n');
+    return;
+  }
+
   if (!isModernRequest && !isPublicLegacyPath(relativePath)) {
     text(response, 404, "Not Found");
     return;
@@ -251,6 +247,15 @@ async function serveStaticFile(response, pathname) {
     }
     text(response, 404, "Not Found");
   }
+}
+
+async function loadLocalQuestionBank() {
+  if (!localQuestionBankLoader) {
+    localQuestionBankLoader = createQuestionBankLoader({
+      workbookBytes: await fs.readFile(path.join(projectRoot, "Questions_InterviewPlus_Bilingual.xlsx")),
+    });
+  }
+  return localQuestionBankLoader();
 }
 
 function isPublicLegacyPath(relativePath) {
@@ -361,6 +366,11 @@ function json(response, statusCode, body) {
 
 function text(response, statusCode, body) {
   response.writeHead(statusCode, { "Content-Type": "text/plain; charset=utf-8" });
+  response.end(body);
+}
+
+function javascript(response, statusCode, body) {
+  response.writeHead(statusCode, { "Content-Type": "application/javascript; charset=utf-8" });
   response.end(body);
 }
 

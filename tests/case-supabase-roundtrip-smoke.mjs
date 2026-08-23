@@ -29,4 +29,18 @@ const row = toRemoteSessionRow(session);
 equal(row.session_json.sessionType, "case");
 deepEqual(mapRemoteSession(row), session);
 
+const historicFrench = mapRemoteSession({
+  id: "historic-fr",
+  user_id: session.userId,
+  session_type: "questions",
+  theme: "Technique",
+  question_count: 1,
+  timer_minutes: 10,
+  global_score: 80,
+  questions_json: [{ questionId: "1", language: "fr", question: "Question", candidateAnswer: "Réponse" }],
+  started_at: session.startedAt,
+  completed_at: session.completedAt,
+});
+equal(historicFrench.config.questionLanguage, "fr");
+
 console.log(JSON.stringify({ ok: true, supabase: "case-envelope" }));
