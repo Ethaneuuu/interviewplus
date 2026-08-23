@@ -25,4 +25,10 @@ assert(
   "Expected .feature-grid to keep its 4-column grid"
 );
 
+assert(/:focus-visible\s*{/.test(css), "Expected a global :focus-visible rule");
+assert(
+  /@media\s*\(prefers-reduced-motion:\s*reduce\)/.test(css),
+  "Expected a prefers-reduced-motion media query"
+);
+
 console.log("css-fixes-smoke: OK");
