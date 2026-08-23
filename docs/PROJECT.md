@@ -204,7 +204,7 @@ Déploiement :
 3. renseigner `supabaseUrl` et `supabaseAnonKey` publics dans `assets/js/config.js` ;
 4. lancer une preview, vérifier la Function, puis seulement publier.
 
-**État actuel : configuré dans le dépôt, mais ni déployé ni validé en live.** La CLI Netlify est absente de l'environnement de travail ; le bundle/cold start réel est donc signalé `skipped-cli-missing` par le smoke de déploiement.
+**État actuel : déployé et validé en live** sur `https://wonderful-jelly-b6826d.netlify.app`, dépôt connecté pour déploiement continu (build automatique à chaque push sur `main`). GitHub Pages a été retiré (workflow supprimé, hébergement désactivé) : Netlify est l'unique cible de production, seule capable d'exécuter la Function `/api/correct`. Vérifié en direct : page d'accueil `200`, `/api/correct` anonyme renvoie `401 AUTH_REQUIRED` (auth Supabase appliquée), et les fichiers hors `dist/` (code serveur, docs, tests, classeur) renvoient `404`. La CLI Netlify reste absente de l'environnement de travail local ; le bundle/cold start n'a donc jamais été rejoué par la CLI elle-même — la Function tourne bien en production, mais ce test spécifique reste `skipped-cli-missing` dans le smoke de déploiement.
 
 ## Supabase
 
@@ -276,11 +276,11 @@ La suite utilise des fakes : elle ne dépense aucun crédit et ne contacte pas O
 
 ## État d'avancement — 23 août 2026
 
-- Commits versionnés jusqu'à `75a7610` : parcours Questions/OpenRouter, Cas pratiques, persistance/déploiement, documentation initiale, oracle financier indépendant (`42a378c`) et frontière OpenRouter sécurisée (`75a7610`).
-- Correctifs B2/B2.1/B3.1 et vague C présents dans le worktree : deadline complète, loader partagé à waiters indépendants, trajet local Bearer, limites chaudes, atomicité, retour auth Case, i18n des 9 cas et historique FR.
-- Vérification la plus récente : **24/24 smokes sans socket**, oracle **9/9** au maximum attendu avec **10 000 graines**, build statique **34 fichiers**, syntaxe/diff/secrets verts.
-- Ces derniers correctifs ne sont pas commités : les écritures Git nécessitant une autorisation sont bloquées par la limite de l'environnement jusqu'au **29 août 2026**.
-- QA visuelle desktop/390 px non exécutée faute de navigateur ; smoke loopback non rejoué après les dernières passes faute d'autorisation ; CLI Netlify absente ; aucun déploiement, appel OpenRouter réel ou test Supabase live n'est revendiqué.
+- Plan `docs/superpowers/plans/2026-08-22-openrouter-cas-pratiques.md` : 8/8 tâches complétées et approuvées (ledger SDD).
+- Revue finale : Critical 1/2, Important 1-7 et Minor 1/2 tous fermés, dernière vague `APPROVED_B4` (`.superpowers/sdd/2026-08-22-openrouter-cas-pratiques/final-review.md`). Commits fusionnés sur `main` : `75a7610` (frontière OpenRouter sécurisée) puis `5e43410` (fermeture des vagues B2.1, B3.1 et C — deadline complète, loader partagé à waiters indépendants, trajet local Bearer, limites chaudes, atomicité, retour auth Case, i18n des 9 cas, historique FR).
+- Vérification la plus récente sur `main` fusionné : **25/25 smokes verts, y compris le contrat HTTP local en loopback** (précédemment bloqué par un sandbox, rejoué avec succès), oracle **9/9** au maximum attendu avec **10 000 graines**, build statique **34 fichiers**, syntaxe/diff/secrets verts.
+- `main` fusionné et déployé en production sur Netlify (voir section Netlify ci-dessus) ; GitHub Pages retiré (`2c58dad`).
+- QA visuelle desktop/390 px toujours non exécutée faute de navigateur automatisé disponible ; CLI Netlify absente de l'environnement de travail local ; aucun appel OpenRouter réel avec clé de production n'a été effectué depuis cet environnement.
 
 ## Sessions payantes — roadmap
 

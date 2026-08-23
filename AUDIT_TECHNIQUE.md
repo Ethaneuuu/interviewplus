@@ -1,6 +1,8 @@
 # Audit technique InterviewPlus
 
-> Mise à jour : la correction distante décrite dans certaines étapes historiques ci-dessous a été retirée. La version active utilise exclusivement le correcteur sémantique local, gratuit et bilingue. Aucun modèle externe ni endpoint de correction n'est appelé.
+> Mise à jour du 15 juillet 2026, historique : la correction distante décrite dans certaines étapes ci-dessous avait été retirée à cette date au profit du correcteur sémantique local uniquement.
+>
+> **Mise à jour du 23 août 2026 :** cette affirmation ne tient plus. La correction OpenRouter (`POST /api/correct`, Questions et Cas pratiques) est désormais le mode principal ; le correcteur local décrit ci-dessous n'est plus qu'un repli dégradé (voir [CORRECTION_LOCALE_GRATUITE.md](CORRECTION_LOCALE_GRATUITE.md)). L'hébergement a aussi changé : GitHub Pages a été retiré, le site est en production sur Netlify. Pour l'état courant, lire [docs/PROJECT.md](docs/PROJECT.md) et [ACCES_PRIVE.md](ACCES_PRIVE.md) ; le reste de ce document est un instantané historique, pas une référence à jour.
 
 Date : 15 juillet 2026
 

@@ -2,7 +2,7 @@
 
 ## Principe
 
-GitHub Pages héberge l'interface statique. Supabase fournit gratuitement l'authentification, la sauvegarde des sessions et le stockage privé du classeur de questions.
+Netlify héberge l'interface statique (`scripts/build-static.mjs` → `dist/`, 34 fichiers publics) et exécute la Function serveur `/api/correct`. Supabase fournit l'authentification, la sauvegarde des sessions et le stockage privé du classeur de questions.
 
 La version privée applique les règles suivantes :
 
@@ -11,8 +11,9 @@ La version privée applique les règles suivantes :
 - seuls les comptes créés par l'administrateur peuvent se connecter ;
 - chaque utilisateur possède son propre email et son propre mot de passe ;
 - les pages de session, résultats et profil refusent les visiteurs non connectés ;
-- le classeur de questions n'est pas publié dans le dépôt GitHub ;
-- le classeur est téléchargé depuis un bucket Supabase privé après authentification.
+- le classeur de questions n'est pas publié dans le dépôt Git ni dans `dist/` ;
+- le classeur est téléchargé depuis un bucket Supabase privé après authentification ;
+- `/api/correct` exige un Bearer JWT Supabase valide et un compte actif dans `authorized_users` (voir `docs/PROJECT.md`).
 
 ## Configuration Supabase
 
@@ -43,6 +44,18 @@ La clé `anon` est conçue pour être publique. La sécurité repose sur l'authe
 
 Une personne absente de `authorized_users` peut éventuellement créer un enregistrement Auth si les inscriptions Supabase sont ouvertes, mais elle est immédiatement déconnectée et les règles RLS lui interdisent le classeur, les sessions et les profils. Pour éviter également ces comptes inutilisés, conserver les inscriptions fermées et créer les comptes manuellement depuis Authentication > Users.
 
+## Configuration Netlify
+
+En plus de `assets/js/config.js` (clés publiques ci-dessus), la Function `/api/correct` a besoin de trois variables **serveur**, à définir dans Netlify (Site configuration > Environment variables), jamais dans un fichier du dépôt :
+
+```text
+SUPABASE_URL=https://VOTRE-PROJET.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<clé service-role, jamais publique>
+OPENROUTER_API_KEY=<clé OpenRouter, jamais publique>
+```
+
+Le reste des réglages (`CORRECTION_*`, `OPENROUTER_*`, timeouts, limites) a des valeurs par défaut documentées dans `docs/PROJECT.md`. Netlify build/déploie automatiquement `dist/` à chaque push sur `main` (`netlify.toml` pilote la commande et la publication).
+
 ## Ajouter ou retirer une personne
 
 - Ajouter : créer son entrée dans `authorized_users`, puis lui demander de s'inscrire sur InterviewPlus.
@@ -52,8 +65,9 @@ Une personne absente de `authorized_users` peut éventuellement créer un enregi
 ## Vérification avant publication
 
 1. Ouvrir le site dans une fenêtre privée.
-2. Vérifier que `setup.html`, `session.html`, `results.html` et `profile.html` renvoient vers la connexion.
+2. Vérifier que `setup.html`, `session.html`, `results.html`, `profile.html`, `case-setup.html` et `case-session.html` renvoient vers la connexion.
 3. Vérifier que le mode invité et le formulaire d'inscription sont absents.
 4. Tester un compte autorisé.
 5. Tester une adresse non créée : la connexion doit échouer.
-6. Vérifier que l'URL GitHub du classeur retourne 404.
+6. Vérifier que le classeur (`Questions_InterviewPlus_Bilingual.xlsx`) et le code serveur (`netlify/functions/**`, `docs/`, `tests/`) renvoient 404 sur le domaine Netlify — seuls les 34 fichiers de `dist/` doivent être servis.
+7. Vérifier qu'une requête anonyme sur `/api/correct` renvoie `401 AUTH_REQUIRED`, pas `404` (sinon la Function ne tourne pas).
