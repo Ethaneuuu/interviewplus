@@ -823,6 +823,7 @@ async function correctQuestions(session, fallback = true) {
   persist();
   const response = await requestCorrection({
     type: "questions",
+    sessionId: session.id,
     items: session.questions.map(({ questionId, language, candidateAnswer }) => ({
       questionId,
       language,

@@ -53,6 +53,7 @@ globalThis.fetch = async (url, options = {}) => {
     if (!correctionAvailable) throw new Error("CORRECTION_UNAVAILABLE");
     const payload = JSON.parse(options.body);
     assert(payload.type === "questions", "Correction request has the wrong type");
+    assert(typeof payload.sessionId === "string" && payload.sessionId.length > 0, "Correction request must carry its idempotency session ID");
     assert(payload.items.every((item) => Object.keys(item).sort().join(",") === "answer,language,questionId"), "Correction request sent extra question data");
     const persisted = JSON.parse(storage.get("interviewplus-state-v4"));
     assert(persisted.activeSession.questions.every((question) => question.candidateAnswer), "Answers were not persisted before correction");

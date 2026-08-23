@@ -16,16 +16,21 @@ server.stderr.on("data", (chunk) => { output += chunk; });
 
 try {
   await waitForServer();
+  const token = await signUp(port);
 
   const method = await fetch(`http://127.0.0.1:${port}/api/correct`);
   equal(method.status, 405);
   deepEqual(await method.json(), { error: "METHOD_NOT_ALLOWED" });
 
-  const malformed = await fetch(`http://127.0.0.1:${port}/api/correct`, { method: "POST", body: "{" });
+  const anonymous = await fetch(`http://127.0.0.1:${port}/api/correct`, { method: "POST", body: "{}" });
+  equal(anonymous.status, 401);
+  deepEqual(await anonymous.json(), { error: "AUTH_REQUIRED" });
+
+  const malformed = await fetch(`http://127.0.0.1:${port}/api/correct`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: "{" });
   equal(malformed.status, 400);
   deepEqual(await malformed.json(), { error: "INVALID_JSON" });
 
-  const unexpected = await fetch(`http://127.0.0.1:${port}/api/correct`, { method: "POST", body: "x".repeat(1_000_001) });
+  const unexpected = await fetch(`http://127.0.0.1:${port}/api/correct`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: "x".repeat(1_000_001) });
   equal(unexpected.status, 500);
   deepEqual(await unexpected.json(), { error: "INTERNAL_ERROR" });
 
@@ -67,8 +72,16 @@ async function verifyUnavailableWorkbook() {
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     ok(fixtureOutput.includes("InterviewPlus available"), `FIXTURE_SERVER_START_FAILED:${fixtureOutput}`);
+    const token = await signUp(fixturePort);
+    const caseResponse = await fetch(`http://127.0.0.1:${fixturePort}/api/correct`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ type: "case", sessionId: "case-without-workbook", theme: "dcf", difficulty: "easy", seed: 1, answers: {} }),
+    });
+    equal(caseResponse.status, 200, "A deterministic case must not load the question workbook");
     const response = await fetch(`http://127.0.0.1:${fixturePort}/api/correct`, {
       method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ type: "questions", items: [{ questionId: "1", language: "fr", answer: "answer" }] }),
     });
     equal(response.status, 500);
@@ -80,4 +93,14 @@ async function verifyUnavailableWorkbook() {
     if (fixtureExit) await fixtureExit;
     await fs.rm(fixtureRoot, { recursive: true, force: true });
   }
+}
+
+async function signUp(serverPort) {
+  const response = await fetch(`http://127.0.0.1:${serverPort}/api/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Test", email: `test-${serverPort}@example.com`, password: "password123" }),
+  });
+  equal(response.status, 200);
+  return (await response.json()).token;
 }

@@ -4,7 +4,8 @@ globalThis.fetch = async () => {
   throw new Error("unexpected provider failure");
 };
 
-const { handler } = await import("../netlify/functions/correct.mjs?handler-smoke");
+const { createHandler } = await import("../netlify/functions/correct.mjs?handler-smoke");
+const handler = createHandler({ env: { CORRECTION_AUTH_MODE: "local" } });
 
 const malformed = await handler({ httpMethod: "POST", body: "{" });
 equal(malformed.statusCode, 400);

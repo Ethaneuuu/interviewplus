@@ -22,6 +22,7 @@ const publicRootFiles = new Set([
   "Questions_InterviewPlus.xlsx",
   "Questions_InterviewPlus_Bilingual.xlsx",
 ]);
+let localQuestionBankLoader;
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
@@ -57,7 +58,7 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(port, "127.0.0.1", () => {
   console.log(`InterviewPlus available at http://localhost:${port}/`);
-  console.log("Evaluation: free local semantic scoring");
+  console.log("Evaluation: OpenRouter with deterministic case grading");
 });
 
 async function handleApiRoute(request, response, pathname) {
@@ -66,6 +67,12 @@ async function handleApiRoute(request, response, pathname) {
   if (pathname === "/api/correct") {
     if (method !== "POST") {
       json(response, 405, { error: "METHOD_NOT_ALLOWED" });
+      return;
+    }
+
+    const db = await readDatabase();
+    if (!getAuthUser(request, db)) {
+      json(response, 401, { error: "AUTH_REQUIRED" });
       return;
     }
 
@@ -82,9 +89,14 @@ async function handleApiRoute(request, response, pathname) {
       import("./netlify/functions/lib/correction-service.mjs"),
     ]);
     try {
-      const questionBankLoader = createQuestionBankLoader({
-        workbookBytes: await fs.readFile(path.join(projectRoot, "Questions_InterviewPlus_Bilingual.xlsx")),
-      });
+      const questionBankLoader = async () => {
+        if (!localQuestionBankLoader) {
+          localQuestionBankLoader = createQuestionBankLoader({
+            workbookBytes: await fs.readFile(path.join(projectRoot, "Questions_InterviewPlus_Bilingual.xlsx")),
+          });
+        }
+        return localQuestionBankLoader();
+      };
       const result = await createCorrectionService({ questionBankLoader, env: process.env }).correct(body);
       json(response, 200, result);
     } catch (error) {
@@ -353,5 +365,5 @@ function text(response, statusCode, body) {
 }
 
 function correctionValidationError(code) {
-  return ["INVALID_CORRECTION_TYPE", "INVALID_CORRECTION_ITEMS", "INVALID_CORRECTION_ITEM", "TOO_MANY_ITEMS", "ANSWER_TOO_LONG", "UNKNOWN_QUESTION", "INVALID_CASE_THEME", "INVALID_CASE_DIFFICULTY", "INVALID_CASE_SEED", "INVALID_CASE_ANSWERS", "TOO_MANY_CASE_ANSWERS", "INVALID_CASE_ANSWER", "INVALID_CASE_RECOMMENDATION"].includes(code);
+  return ["INVALID_CORRECTION_TYPE", "INVALID_CORRECTION_ITEMS", "INVALID_CORRECTION_ITEM", "TOO_MANY_ITEMS", "ANSWER_TOO_LONG", "CORRECTION_PAYLOAD_TOO_LARGE", "UNKNOWN_QUESTION", "INVALID_CASE_THEME", "INVALID_CASE_DIFFICULTY", "INVALID_CASE_SEED", "INVALID_CASE_ANSWERS", "TOO_MANY_CASE_ANSWERS", "INVALID_CASE_ANSWER", "INVALID_CASE_RECOMMENDATION"].includes(code);
 }
