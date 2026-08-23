@@ -901,30 +901,6 @@ button {
   margin-bottom: 10px;
 }
 
-.score-shell {
-  display: grid;
-  gap: 12px;
-  justify-items: center;
-  text-align: center;
-}
-
-.score-ring {
-  width: 160px;
-  height: 160px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at center, rgba(9, 18, 36, 0.96) 0 56%, transparent 57%),
-    conic-gradient(rgba(22, 38, 58, 0.08) 360deg, rgba(22, 38, 58, 0.08) 360deg);
-}
-
-.score-ring strong {
-  display: block;
-  font-size: 2.6rem;
-  line-height: 1;
-}
-
 .question-nav {
   display: grid;
   gap: 10px;

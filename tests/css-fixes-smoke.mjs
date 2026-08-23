@@ -31,4 +31,7 @@ assert(
   "Expected a prefers-reduced-motion media query"
 );
 
+assert(!/\.score-ring\b/.test(css), "Expected dead .score-ring CSS to be removed");
+assert(!/\.score-shell\b/.test(css), "Expected dead .score-shell CSS to be removed");
+
 console.log("css-fixes-smoke: OK");
