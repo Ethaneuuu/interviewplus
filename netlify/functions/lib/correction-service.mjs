@@ -27,7 +27,7 @@ export function createCorrectionService({ fetchImpl = fetch, questionBankLoader,
 async function correctCase({ payload, fetchImpl, env }) {
   const { theme, difficulty, seed, answers, recommendation } = validateCasePayload(payload);
   const statement = generateCaseStatement({ theme, difficulty, seed });
-  if (!recommendation) return { ...gradeCase({ theme, difficulty, seed, answers }), mode: "deterministic" };
+  if (!recommendation.trim()) return { ...gradeCase({ theme, difficulty, seed, answers: { ...answers, recommendation } }), mode: "deterministic" };
 
   const solution = calculateCaseSolution(statement);
   const messages = [

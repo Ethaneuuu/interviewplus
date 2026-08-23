@@ -137,6 +137,11 @@ equal(unavailableResult.mode, "deterministic");
 equal(unavailableResult.narrativeStatus, "unavailable");
 equal(unavailableResult.breakdown.justification, 0);
 
+const emptyRecommendation = await narrativeService.correct({ ...casePayload, recommendation: "   " });
+equal(emptyRecommendation.mode, "deterministic");
+equal(emptyRecommendation.breakdown.justification, 0);
+equal(emptyRecommendation.score, 95);
+
 await rejects(() => narrativeService.correct({ ...casePayload, seed: -1 }), /INVALID_CASE_SEED/);
 await rejects(() => narrativeService.correct({ ...casePayload, answers: { unknown_output: 1 } }), /INVALID_CASE_ANSWER/);
 await rejects(() => narrativeService.correct({ ...casePayload, recommendation: "x".repeat(2001) }), /INVALID_CASE_RECOMMENDATION/);

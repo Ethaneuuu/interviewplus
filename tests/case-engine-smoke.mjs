@@ -16,7 +16,7 @@ for (const theme of CASE_THEMES) {
   for (const statement of statements) {
     const solution = calculateCaseSolution(statement);
     const grade = gradeCase({ theme, difficulty: statement.difficulty, seed: 12345, answers: solution });
-    equal(grade.score, 100);
+    equal(grade.score, statement.recommendation ? 95 : 100);
     equal(grade.passed, true);
     equal(grade.breakdown.results, 100);
     equal(grade.breakdown.method, 100);
@@ -28,7 +28,7 @@ for (const theme of CASE_THEMES) {
     const field = statement.answerFields[0];
     const inside = { ...solution, [field.id]: solution[field.id] + field.tolerance * 0.99 };
     const half = { ...solution, [field.id]: solution[field.id] + field.tolerance * 1.5 };
-    equal(gradeCase({ theme, difficulty: statement.difficulty, seed: 12345, answers: inside }).score, 100);
+    equal(gradeCase({ theme, difficulty: statement.difficulty, seed: 12345, answers: inside }).score, statement.recommendation ? 95 : 100);
     equal(gradeCase({ theme, difficulty: statement.difficulty, seed: 12345, answers: half }).items.find((item) => item.id === field.id).credit, 0.5);
   }
 }

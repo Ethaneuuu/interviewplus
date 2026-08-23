@@ -8,9 +8,9 @@ export const CORE_OUTPUTS = {
 };
 
 const METHOD_OUTPUTS = {
-  dcf: [["ebitda_y1", "discount_factor_y1"], ["ebitda_y1", "discount_factor_y1", "ebitda_y2", "capex_y1"], ["ebitda_y1", "discount_factor_y1", "ebitda_y2", "capex_y1", "ebitda_y3", "nwc_y1", "discount_factor_y5"]],
-  lbo: [["sponsor_equity", "debt_paydown_y1"], ["sponsor_equity", "debt_paydown_y1", "interest_y1", "revolver_draw"], ["sponsor_equity", "debt_paydown_y1", "interest_y1", "revolver_draw", "pik_interest_y1", "management_proceeds"]],
-  "merger-model": [["buyer_eps", "synergy_after_tax"], ["buyer_eps", "synergy_after_tax", "fee_after_tax", "purchase_price_allocation"], ["buyer_eps", "synergy_after_tax", "fee_after_tax", "purchase_price_allocation", "integration_after_tax", "pro_forma_eps_y2"]],
+  dcf: [["ebitda_y1", "discount_factor_y1"], ["ebitda_y1", "discount_factor_y1", "ebitda_y2", "capex_y1", "terminal_value_multiple", "comparable_value"], ["ebitda_y1", "discount_factor_y1", "ebitda_y2", "capex_y1", "terminal_value_multiple", "comparable_value", "ebitda_y3", "nwc_y1", "discount_factor_y5", "scenario_downside_ev", "scenario_upside_ev"]],
+  lbo: [["sponsor_equity", "debt_paydown_y1"], ["sponsor_equity", "debt_paydown_y1", "interest_y1", "revolver_draw"], ["sponsor_equity", "debt_paydown_y1", "interest_y1", "revolver_draw", "pik_interest_y1", "management_proceeds", "value_creation_ebitda", "value_creation_multiple", "value_creation_deleveraging"]],
+  "merger-model": [["buyer_eps", "synergy_after_tax"], ["buyer_eps", "synergy_after_tax", "fee_after_tax", "purchase_price_allocation"], ["buyer_eps", "synergy_after_tax", "fee_after_tax", "purchase_price_allocation", "integration_after_tax", "pro_forma_eps_y2", "goodwill", "combined_assets", "synergy_npv", "accretion_dilution_y2_pct"]],
 };
 
 export function generateCaseStatement({ theme, difficulty, seed }) {
@@ -47,9 +47,9 @@ function publicInputs(theme, difficulty, random) {
   const n = (min, max) => integer(random, min, max);
   const p = (min, max, step = 0.005) => decimal(random, min, max, step);
   if (theme === "dcf") {
-    const data = { revenue: n(900, 1500), growth: p(.04, .10), ebitda_margin: p(.18, .30), da_pct: p(.02, .05), capex_pct: p(.03, .07), nwc_pct: p(.08, .16), tax_rate: .25, terminal_growth: p(.02, .035), debt: n(100, 350), cash: n(30, 130), shares: n(70, 160) };
+    const data = { revenue: n(900, 1500), growth: p(.04, .10), ebitda_margin: p(.18, .30), da_pct: p(.02, .05), capex_pct: p(.03, .07), nwc_pct: p(.08, .16), tax_rate: .25, terminal_growth: p(.02, .035), terminal_multiple: decimal(random, 8, 12, .5), sensitivity_wacc_delta: .01, sensitivity_growth_delta: .005, debt: n(100, 350), cash: n(30, 130), shares: n(70, 160) };
     if (difficulty === "easy") data.wacc = p(.08, .12);
-    if (difficulty !== "easy") Object.assign(data, { risk_free_rate: p(.025, .04), beta: decimal(random, .8, 1.4, .1), equity_risk_premium: p(.045, .065), cost_of_debt: p(.04, .07), target_debt_pct: p(.25, .45) });
+    if (difficulty !== "easy") Object.assign(data, { risk_free_rate: p(.025, .04), beta: decimal(random, .8, 1.4, .1), equity_risk_premium: p(.045, .065), cost_of_debt: p(.04, .07), target_debt_pct: p(.25, .45), stub_year_fraction: .5, mid_year_convention: 1 });
     if (difficulty === "advanced") {
       const segmentA = n(450, 800); const segmentB = n(300, 650);
       Object.assign(data, { revenue: segmentA + segmentB, segment_a_revenue: segmentA, segment_b_revenue: segmentB, segment_a_growth: p(.04, .10), segment_b_growth: p(.02, .08), segment_a_margin: p(.20, .32), segment_b_margin: p(.14, .26), base_case_probability: p(.45, .65), upside_growth: p(.01, .03), comparable_beta: decimal(random, .9, 1.5, .1), comparable_debt_pct: p(.15, .35), stub_year_fraction: .5, mid_year_convention: 1 });
@@ -58,7 +58,7 @@ function publicInputs(theme, difficulty, random) {
     return data;
   }
   if (theme === "lbo") {
-    const data = { ebitda: n(180, 320), entry_multiple: decimal(random, 8, 11, .5), exit_multiple: decimal(random, 8, 11, .5), existing_debt: n(100, 250), cash: n(20, 80), debt: n(500, 800), fcf_margin: p(.36, .50), ebitda_growth: p(.04, .10), fees: n(15, 35), min_cash: 0, management_pool: 0, pik_rate: 0, rollover: 0 };
+    const data = { ebitda: n(180, 320), entry_multiple: decimal(random, 8, 11, .5), exit_multiple: decimal(random, 8, 11, .5), existing_debt: n(100, 250), cash: n(20, 80), debt: n(500, 800), fcf_margin: p(.36, .50), ebitda_growth: p(.04, .10), fees: n(15, 35), tax_rate: .25, senior_interest_rate: .06, junior_interest_rate: .10, revolver_interest_rate: .08, ppa_amortization_years: 5, sensitivity_exit_multiple_delta: .5, min_cash: 0, management_pool: 0, pik_rate: 0, rollover: 0 };
     if (difficulty !== "easy") { const cash = data.cash; Object.assign(data, { senior_debt: n(300, 500), junior_debt: n(50, 150), min_cash: n(20, Math.max(20, cash)), liquidity_shock: random() < .15 ? n(100, 200) : 0, nol: n(20, 90), management_pool: p(.06, .12), revolver_limit: n(50, 150) }); }
     if (difficulty === "advanced") { Object.assign(data, { revenue: n(700, 1200), revenue_growth: p(.04, .10), ebitda_margin: p(.18, .28), margin_expansion: p(.005, .02), capex_pct: p(.03, .07), nwc_pct: p(.06, .14), liquidity_shock: random() < .35 ? n(120, 220) : 0, management_hurdle: decimal(random, 1.2, 1.8, .1), ppa_step_up: n(20, 80), earnout: n(10, 60), rollover: n(30, 120), pik_rate: p(.08, .12), cash_sweep: p(.60, .90), call_premium: p(.01, .04) }); delete data.debt; delete data.fcf_margin; delete data.ebitda_growth; }
     return data;
