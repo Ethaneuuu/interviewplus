@@ -8,8 +8,8 @@ export const CORE_OUTPUTS = {
 };
 
 const METHOD_OUTPUTS = {
-  dcf: [["ebitda_y1", "discount_factor_y1"], ["ebitda_y1", "discount_factor_y1", "ebitda_y2", "capex_y1", "terminal_value_multiple", "comparable_value"], ["ebitda_y1", "discount_factor_y1", "ebitda_y2", "capex_y1", "terminal_value_multiple", "comparable_value", "ebitda_y3", "nwc_y1", "discount_factor_y5", "scenario_downside_ev", "scenario_upside_ev"]],
-  lbo: [["sponsor_equity", "debt_paydown_y1"], ["sponsor_equity", "debt_paydown_y1", "interest_y1", "revolver_draw"], ["sponsor_equity", "debt_paydown_y1", "interest_y1", "revolver_draw", "pik_interest_y1", "management_proceeds", "value_creation_ebitda", "value_creation_multiple", "value_creation_deleveraging"]],
+  dcf: [["ebitda_y1", "discount_factor_y1"], ["ebitda_y1", "discount_factor_y1", "ebitda_y2", "capex_y1", "terminal_value_multiple", "comparable_value", "grid_wacc_high_growth_low", "grid_wacc_low_growth_high", "grid_wacc_high_multiple_low", "grid_wacc_low_multiple_high"], ["ebitda_y1", "discount_factor_y1", "ebitda_y2", "capex_y1", "terminal_value_multiple", "comparable_value", "grid_wacc_high_growth_low", "grid_wacc_low_growth_high", "grid_wacc_high_multiple_low", "grid_wacc_low_multiple_high", "ebitda_y3", "nwc_y1", "discount_factor_y5", "scenario_downside_ev", "scenario_base_ev", "scenario_upside_ev"]],
+  lbo: [["sponsor_equity", "debt_paydown_y1"], ["sponsor_equity", "debt_paydown_y1", "interest_y1", "revolver_draw"], ["sponsor_equity", "debt_paydown_y1", "interest_y1", "revolver_draw", "pik_interest_y1", "management_proceeds", "revenue_y1", "ebitda_y1", "assets_y1", "cash_flow_y1", "balance_check_y1", "value_creation_ebitda", "value_creation_multiple", "value_creation_deleveraging"]],
   "merger-model": [["buyer_eps", "synergy_after_tax"], ["buyer_eps", "synergy_after_tax", "fee_after_tax", "purchase_price_allocation"], ["buyer_eps", "synergy_after_tax", "fee_after_tax", "purchase_price_allocation", "integration_after_tax", "pro_forma_eps_y2", "goodwill", "combined_assets", "synergy_npv", "accretion_dilution_y2_pct"]],
 };
 
