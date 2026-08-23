@@ -654,6 +654,14 @@ button {
   font-size: clamp(1.5rem, 2.2vw, 2.1rem);
 }
 
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .eyebrow {
   margin: 0 0 10px;
   text-transform: uppercase;
