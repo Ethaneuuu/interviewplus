@@ -12,6 +12,7 @@ import {
   startSession,
 } from "./store.js";
 import { setUiLanguage, t } from "./i18n.js";
+import "./theme.js";
 
 const summary = document.getElementById("setupSummary");
 const questionCount = document.getElementById("questionCount");

@@ -9,6 +9,7 @@ import {
   requireAuthorizedAccess,
 } from "./store.js";
 import { caseOutputLabel, evaluationLabel, t } from "./i18n.js";
+import "./theme.js";
 
 const metrics = document.getElementById("resultsMetrics");
 const resultsList = document.getElementById("resultsList");

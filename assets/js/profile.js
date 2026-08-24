@@ -1,5 +1,6 @@
 import { continueAsGuest, getCurrentUser, getProfileAnalytics, initializeApp, isGuestUser, logoutUser, requireAuthorizedAccess } from "./store.js";
 import { t } from "./i18n.js";
+import "./theme.js";
 
 const title = document.getElementById("profileTitle");
 const metrics = document.getElementById("profileMetrics");

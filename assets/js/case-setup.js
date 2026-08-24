@@ -1,6 +1,7 @@
 import { continueAsGuest, getCaseConfig, getCurrentUser, initializeApp, requireAuthorizedAccess, setCaseConfig, startCaseSession } from "./store.js";
 import { CASE_DIFFICULTIES, CASE_THEMES } from "./case-templates.js";
 import { t } from "./i18n.js";
+import "./theme.js";
 
 const theme = document.getElementById("caseTheme");
 const difficulty = document.getElementById("caseDifficulty");

@@ -4,6 +4,7 @@ import {
   isGuestUser,
 } from "./store.js";
 import { t } from "./i18n.js";
+import "./theme.js";
 
 const authNavLink = document.getElementById("authNavLink");
 const primarySessionLink = document.getElementById("primarySessionLink");

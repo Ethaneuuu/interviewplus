@@ -12,6 +12,7 @@ import {
   goToQuestion,
 } from "./store.js";
 import { t } from "./i18n.js";
+import "./theme.js";
 
 const elements = {
   sessionTitle: document.getElementById("sessionTitle"),

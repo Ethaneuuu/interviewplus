@@ -1,5 +1,6 @@
 import { continueAsGuest, finalizeCaseSession, getActiveSession, getCurrentUser, initializeApp, requireAuthorizedAccess, saveCaseAnswer } from "./store.js";
 import { caseInputLabel, caseOutputLabel, caseSectionLabel, caseSessionInstructions, caseSessionTitle, t } from "./i18n.js";
+import "./theme.js";
 
 const title = document.getElementById("caseTitle");
 const instructions = document.getElementById("caseInstructions");
