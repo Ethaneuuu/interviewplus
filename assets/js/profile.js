@@ -1,6 +1,8 @@
 import { continueAsGuest, getCurrentUser, getProfileAnalytics, initializeApp, isGuestUser, logoutUser, requireAuthorizedAccess } from "./store.js";
 import { t } from "./i18n.js";
+import { wireAuthNavLink } from "./nav.js";
 import "./theme.js";
+import "./mobile-nav.js";
 
 const title = document.getElementById("profileTitle");
 const metrics = document.getElementById("profileMetrics");
@@ -12,6 +14,7 @@ requireAuthorizedAccess("profile.html");
 if (!getCurrentUser()) {
   await continueAsGuest();
 }
+wireAuthNavLink();
 await render();
 
 async function render() {

@@ -11,7 +11,7 @@
   <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./assets/css/app.css">
   <script src="./assets/js/config.js"></script>
   <script type="module" defer src="./assets/js/home.js"></script>
@@ -24,10 +24,10 @@
       </a>
       <nav class="topnav">
         <a class="nav-link is-active" href="./index.html">Accueil</a>
-        <a class="nav-link" href="./setup.html">Nouvelle session</a>
-        <a class="nav-link" href="./case-setup.html">Cas pratiques</a>
+        <a class="nav-link" href="./new-session.html">Nouvelle session</a>
+        <a class="nav-link" id="navCasePratiques" href="./case-setup.html">Cas pratiques</a>
         <a class="nav-link" href="./results.html">Sessions</a>
-        <a class="nav-link" href="./profile.html">Profil</a>
+        <a class="nav-link" id="navProfil" href="./profile.html">Profil</a>
         <a class="nav-link" id="authNavLink" href="./auth.html">Connexion</a>
       </nav>
     </header>
@@ -64,6 +64,10 @@
         </aside>
       </section>
 
+      <section aria-label="Origine des questions">
+        <p class="marquee-caption">Les questions viennent des meilleures banques</p>
+      </section>
+
       <section class="logo-marquee" aria-label="Environnements vises">
         <div class="logo-track">
           <figure class="bank-logo"><img src="./assets/img/logos/goldman-sachs.svg" alt="Goldman Sachs"><figcaption>Goldman Sachs</figcaption></figure>
@@ -82,6 +86,45 @@
           <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/rothschild.svg" alt=""><figcaption>Rothschild & Co</figcaption></figure>
           <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/blackstone.svg" alt=""><figcaption>Blackstone</figcaption></figure>
           <figure class="bank-logo" aria-hidden="true"><img src="./assets/img/logos/kkr.svg" alt=""><figcaption>KKR</figcaption></figure>
+        </div>
+      </section>
+
+      <section class="landing-section">
+        <div class="section-kicker">
+          <p class="eyebrow">Fonctionnalites</p>
+          <h2>Voir InterviewPlus en action.</h2>
+        </div>
+        <div class="showcase-grid">
+          <article class="showcase-card">
+            <div class="showcase-media">
+              <span class="play-glyph">&#9654;</span>
+              <span>Apercu video &mdash; Nouvelle session</span>
+            </div>
+            <div class="showcase-body">
+              <h3>Tests 100% personnalisables</h3>
+              <p>Nombre de questions, theme cible ou tirage aleatoire, timer global : chaque session est configuree avant de commencer.</p>
+            </div>
+          </article>
+          <article class="showcase-card">
+            <div class="showcase-media">
+              <span class="play-glyph">&#9654;</span>
+              <span>Apercu video &mdash; Cas pratiques</span>
+            </div>
+            <div class="showcase-body">
+              <h3>Questions pertinentes, cas reels</h3>
+              <p>Des mises en situation issues des meilleurs process M&amp;A, pas des questions generiques trouvees en ligne.</p>
+            </div>
+          </article>
+          <article class="showcase-card">
+            <div class="showcase-media">
+              <span class="play-glyph">&#9654;</span>
+              <span>Apercu video &mdash; Generation quotidienne</span>
+            </div>
+            <div class="showcase-body">
+              <h3>Jamais deux fois la meme question</h3>
+              <p>Base entretenue chaque jour, generation automatique de variantes : des tests renouvelables et uniques a chaque session.</p>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -136,6 +179,17 @@
           <article class="testimonial-card"><p>"Les corrections par question m'ont aide a isoler mes faiblesses en DCF et accounting."</p><strong>Master finance student</strong></article>
           <article class="testimonial-card"><p>"Le format est direct: question, reponse, score, correction. Exactement ce qu'il faut pour repeter."</p><strong>Off-cycle applicant</strong></article>
         </div>
+      </section>
+
+      <section class="final-cta" aria-label="Appel a l'action">
+        <span class="spark" style="top: 18%; left: 12%; animation-delay: 0s"></span>
+        <span class="spark" style="top: 30%; left: 82%; animation-delay: 0.6s"></span>
+        <span class="spark" style="top: 70%; left: 20%; animation-delay: 1.2s"></span>
+        <span class="spark" style="top: 60%; left: 88%; animation-delay: 1.8s"></span>
+        <span class="spark" style="top: 85%; left: 55%; animation-delay: 2.4s"></span>
+        <span class="spark" style="top: 15%; left: 50%; animation-delay: 0.9s"></span>
+        <h2>Entrainez-vous maintenant.</h2>
+        <a class="button button-primary" id="finalCtaLink" href="./setup.html">Commencer une session</a>
       </section>
     </main>
 

@@ -10,6 +10,7 @@ import {
 } from "./store.js";
 import { t } from "./i18n.js";
 import "./theme.js";
+import "./mobile-nav.js";
 
 const message = document.getElementById("authMessage");
 const loginButton = document.getElementById("loginButton");

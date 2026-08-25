@@ -203,6 +203,8 @@ const pairs = [
   ["Retour sur la recommandation", "Recommendation feedback"],
   ["Refaire ce cas", "Start another case"],
   ["Modèle de fusion", "Merger model"],
+  ["Masquer la navigation", "Hide navigation"],
+  ["Afficher la navigation", "Show navigation"],
 ];
 
 const lookup = new Map();

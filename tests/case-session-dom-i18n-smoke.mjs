@@ -45,11 +45,27 @@ if (!language) {
 
   const expectedThemes = { fr: { dcf: "Évaluation DCF", lbo: "Modèle LBO", "merger-model": "Modèle de fusion" }, en: { dcf: "DCF valuation", lbo: "LBO model", "merger-model": "Merger model" } };
   const expectedLevels = { fr: { easy: "Débutant", intermediate: "Intermédiaire", advanced: "Avancé" }, en: { easy: "Easy", intermediate: "Intermediate", advanced: "Advanced" } };
+  function collectLabels(element, out = []) {
+    if (element.textContent) out.push(element.textContent);
+    (element.children || []).forEach((child) => collectLabels(child, out));
+    return out;
+  }
+
   equal(elements.caseTitle.textContent, `${expectedThemes[language][theme]} | ${expectedLevels[language][difficulty]}`);
   ok(elements.caseInstructions.textContent.startsWith(language === "fr" ? "Construisez" : "Complete"));
-  equal(elements.caseStatement.children[1].textContent, language === "fr" ? "Données (millions USD, sauf données par action)" : "Inputs (USD millions, except per-share data)");
-  ok(elements.caseStatement.children[2].innerHTML.includes(language === "fr" ? "Poste" : "Item"));
-  const visibleLabels = elements.caseStatement.children[2].children[0].children.map((row) => row.children[0].textContent);
-  const answerLabels = elements.caseAnswers.children.map((label) => label.children[0].textContent);
-  ok([...visibleLabels, ...answerLabels].every((label) => label && !label.includes("_")));
+  function findDeep(element, predicate) {
+    if (predicate(element)) return element;
+    for (const child of element.children || []) {
+      const found = findDeep(child, predicate);
+      if (found) return found;
+    }
+    return null;
+  }
+  const statementTable = findDeep(elements.caseStatement, (el) => (el.innerHTML || "").includes(language === "fr" ? "Poste" : "Item"));
+  ok(statementTable, "Expected the case inputs table to be rendered");
+  const sectionTitle = elements.caseStatement.children.find((child) => child.textContent === (language === "fr" ? "Données (millions USD, sauf données par action)" : "Inputs (USD millions, except per-share data)"));
+  ok(sectionTitle, "Expected the inputs section title to be translated");
+  const labels = [...collectLabels(elements.caseStatement), ...collectLabels(elements.caseAnswers)];
+  ok(labels.length > 0);
+  ok(labels.every((label) => !label.includes("_")));
 }

@@ -12,7 +12,9 @@ import {
   goToQuestion,
 } from "./store.js";
 import { t } from "./i18n.js";
+import { wireAuthNavLink } from "./nav.js";
 import "./theme.js";
+import "./mobile-nav.js";
 
 const elements = {
   sessionTitle: document.getElementById("sessionTitle"),
@@ -31,6 +33,8 @@ const elements = {
   globalScorePill: document.getElementById("globalScorePill"),
   sideTitle: document.getElementById("sideTitle"),
   sideHint: document.getElementById("sideHint"),
+  sessionLayout: document.getElementById("sessionLayout"),
+  toggleNav: document.getElementById("toggleNav"),
 };
 
 let timerId = null;
@@ -41,6 +45,7 @@ requireAuthorizedAccess("session.html");
 if (!getCurrentUser()) {
   await continueAsGuest();
 }
+wireAuthNavLink();
 await hydrateSessionFromQuery();
 bindEvents();
 await render();
@@ -89,13 +94,22 @@ function bindEvents() {
     saveAnswer(session.currentIndex, elements.candidateAnswer.value);
     await finalizeAndRedirect();
   });
+
+  elements.toggleNav.addEventListener("click", () => {
+    const hidden = elements.sessionLayout.classList.toggle("nav-hidden");
+    elements.toggleNav.textContent = hidden
+      ? t("Afficher la navigation", "Show navigation")
+      : t("Masquer la navigation", "Hide navigation");
+  });
 }
 
 async function finalizeAndRedirect() {
   if (isFinalizing) return;
   isFinalizing = true;
   clearInterval(timerId);
+  const finishLabel = elements.finishNow.textContent;
   elements.finishNow.disabled = true;
+  elements.finishNow.textContent = t("Correction en cours...", "Evaluation in progress...");
   elements.nextQuestion.disabled = true;
   elements.prevQuestion.disabled = true;
   elements.candidateAnswer.disabled = true;
@@ -107,6 +121,7 @@ async function finalizeAndRedirect() {
   } catch {
     isFinalizing = false;
     elements.finishNow.disabled = false;
+    elements.finishNow.textContent = finishLabel;
     elements.sessionSubtitle.textContent = t(
       "La correction a échoué. Vous pouvez réessayer sans perdre vos réponses.",
       "The evaluation failed. You can try again without losing your answers."
@@ -142,6 +157,7 @@ async function render() {
 
   const current = session.current;
   elements.themePill.textContent = `${t("Thème", "Topic")}: ${displayTheme(session.config.theme)} | ${languageLabel(session.config.questionLanguage)}`;
+  elements.themePill.classList.toggle("hidden", session.status === "running");
   elements.progressChip.textContent = `Question ${session.currentIndex + 1} / ${session.totalQuestions}`;
   elements.questionText.textContent = current.question;
   elements.questionMeta.textContent = `${current.category} | ${current.subcategory}${

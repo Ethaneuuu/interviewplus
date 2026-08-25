@@ -187,14 +187,14 @@ export function isRestrictedAccess() {
 }
 
 export function requireAuthorizedAccess(returnTo = "setup.html") {
-  if (!isRestrictedAccess() || currentUser) return;
+  if (!isRestrictedAccess() || (currentUser && !isGuestUser(currentUser))) return;
   const destination = encodeURIComponent(safeAuthReturnDestination(returnTo));
   window.location.replace(`./auth.html?returnTo=${destination}`);
   throw new Error("ACCESS_REDIRECT");
 }
 
 export function safeAuthReturnDestination(requested) {
-  return new Set(["setup.html", "session.html", "results.html", "profile.html", "case-setup.html", "case-session.html"]).has(requested)
+  return new Set(["new-session.html", "setup.html", "session.html", "results.html", "profile.html", "case-setup.html", "case-session.html"]).has(requested)
     ? requested
     : "setup.html";
 }

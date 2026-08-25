@@ -1,7 +1,9 @@
 import { continueAsGuest, getCaseConfig, getCurrentUser, initializeApp, requireAuthorizedAccess, setCaseConfig, startCaseSession } from "./store.js";
 import { CASE_DIFFICULTIES, CASE_THEMES } from "./case-templates.js";
 import { t } from "./i18n.js";
+import { wireAuthNavLink } from "./nav.js";
 import "./theme.js";
+import "./mobile-nav.js";
 
 const theme = document.getElementById("caseTheme");
 const difficulty = document.getElementById("caseDifficulty");
@@ -12,6 +14,7 @@ const message = document.getElementById("caseSetupMessage");
 await initializeApp();
 requireAuthorizedAccess("case-setup.html");
 if (!getCurrentUser()) await continueAsGuest();
+wireAuthNavLink();
 
 const config = getCaseConfig();
 const query = new URLSearchParams(window.location.search);

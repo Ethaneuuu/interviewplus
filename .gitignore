@@ -6,5 +6,9 @@ dist/
 node_modules/
 .worktrees/
 Nouveau site/
+New logo/
+Logo effects refs/
+Site design refs/
 *.xlsx
 *.log
+assets/img/logos/incoming/

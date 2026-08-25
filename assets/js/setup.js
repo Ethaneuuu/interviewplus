@@ -7,14 +7,14 @@ import {
   initializeApp,
   continueAsGuest,
   requireAuthorizedAccess,
-  isGuestUser,
   setSessionConfig,
   startSession,
 } from "./store.js";
 import { setUiLanguage, t } from "./i18n.js";
+import { wireAuthNavLink } from "./nav.js";
 import "./theme.js";
+import "./mobile-nav.js";
 
-const summary = document.getElementById("setupSummary");
 const questionCount = document.getElementById("questionCount");
 const questionLanguage = document.getElementById("questionLanguage");
 const themeSelect = document.getElementById("themeSelect");
@@ -29,6 +29,7 @@ let user = getCurrentUser();
 if (!user) {
   user = await continueAsGuest();
 }
+wireAuthNavLink();
 hydrate();
 bindEvents();
 
@@ -39,18 +40,6 @@ function hydrate() {
   const selectedLanguage = languages.includes(config.questionLanguage) ? config.questionLanguage : languages[0];
   const themes = getThemeOptions(selectedLanguage);
   const selectedTheme = themes.includes(config.theme) ? config.theme : "Aleatoire";
-  const perLanguageCount = meta.questionCountsByLanguage?.[selectedLanguage] || meta.questionCount;
-  const dynamicCount = meta.dynamicQuestionCountsByLanguage?.[selectedLanguage] || 0;
-
-  summary.innerHTML = `
-    <span class="pill">${perLanguageCount} ${t("questions en", "questions in")} ${languageLabel(selectedLanguage).toLowerCase()}</span>
-    <span class="pill">${meta.themeCount} ${t("catégories + tirage aléatoire", "categories + random draw")}</span>
-    <span class="pill">${languages.map(languageLabel).join(" / ")}</span>
-    <span class="pill">${dynamicCount} ${t("questions à actualiser", "questions to refresh")}</span>
-    <span class="pill">${t("Profil", "Profile")}: ${isGuestUser(user) ? t("Invité", "Guest") : escapeHtml(user.name)}</span>
-    ${isGuestUser(user) ? `<a class="pill pill-link" href="./auth.html">${t("Créer un compte pour synchroniser", "Create an account to sync")}</a>` : ""}
-  `;
-
   fillSelect(questionLanguage, languages, selectedLanguage, languageLabel);
   fillSelect(themeSelect, themes, selectedTheme, themeLabel);
   startButton.disabled = themes.length === 0 || meta.degraded;
@@ -126,13 +115,6 @@ function refreshQuestionCountOptions() {
       .sort((a, b) => Number(b.value) - Number(a.value))[0];
     if (largestAvailable) questionCount.value = largestAvailable.value;
   }
-
-  if (available > 0 && !getDatasetMeta().degraded) {
-    setupMessage.textContent = t(
-      `${available} question${available > 1 ? "s" : ""} disponible${available > 1 ? "s" : ""} pour ce choix.`,
-      `${available} question${available > 1 ? "s" : ""} available for this selection.`
-    );
-  }
 }
 
 function fillSelect(select, values, selectedValue, labelFormatter = (value) => value) {
@@ -170,11 +152,3 @@ function themeLabel(theme) {
   return questionLanguage.value === "en" ? "Random" : "Aléatoire";
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}

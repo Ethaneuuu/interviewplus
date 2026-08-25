@@ -9,7 +9,9 @@ import {
   requireAuthorizedAccess,
 } from "./store.js";
 import { caseOutputLabel, evaluationLabel, t } from "./i18n.js";
+import { wireAuthNavLink } from "./nav.js";
 import "./theme.js";
+import "./mobile-nav.js";
 
 const metrics = document.getElementById("resultsMetrics");
 const resultsList = document.getElementById("resultsList");
@@ -27,6 +29,7 @@ requireAuthorizedAccess("results.html");
 if (!getCurrentUser()) {
   await continueAsGuest();
 }
+wireAuthNavLink();
 await render();
 
 recorrectButton.addEventListener("click", async () => {

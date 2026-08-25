@@ -8,7 +8,7 @@
   <meta name="description" content="Repondez a vos questions M&A sous timer avant de recevoir une correction detaillee.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./assets/css/app.css">
   <script src="./assets/js/config.js"></script>
   <script defer src="./assets/js/xlsx.full.min.js"></script>
@@ -22,10 +22,11 @@
       </a>
       <nav class="topnav">
         <a class="nav-link" href="./index.html">Accueil</a>
-        <a class="nav-link" href="./setup.html">Nouvelle session</a>
+        <a class="nav-link" href="./new-session.html">Nouvelle session</a>
         <a class="nav-link" href="./case-setup.html">Cas pratiques</a>
         <a class="nav-link" href="./results.html">Sessions</a>
         <a class="nav-link" href="./profile.html">Profil</a>
+        <a class="nav-link" id="authNavLink" href="./auth.html">Connexion</a>
       </nav>
     </header>
 
@@ -42,11 +43,12 @@
         </div>
       </section>
 
-      <section class="grid grid-session">
-        <article class="panel">
+      <section class="grid grid-session" id="sessionLayout">
+        <article class="panel session-main">
           <div class="session-topbar">
             <span class="pill" id="progressChip">Question 1</span>
             <span class="pill" id="themePill">Theme</span>
+            <button class="button button-ghost session-focus-toggle" id="toggleNav" type="button">Masquer la navigation</button>
           </div>
 
           <article class="question-block">
@@ -68,7 +70,7 @@
           </div>
         </article>
 
-        <aside class="panel">
+        <aside class="panel" id="navPanel">
           <div class="section-head">
             <div>
               <p class="eyebrow">Navigation</p>

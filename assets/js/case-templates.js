@@ -1,6 +1,62 @@
 export const CASE_THEMES = ["dcf", "lbo", "merger-model"];
 export const CASE_DIFFICULTIES = ["easy", "intermediate", "advanced"];
 
+const COMPANIES = [
+  { name: "Solstice Industrial Group", sectorFr: "industrie manufacturière", sectorEn: "industrial manufacturing" },
+  { name: "Meridian Foods Holding", sectorFr: "agroalimentaire", sectorEn: "food and beverage" },
+  { name: "Vantage Analytics Corp", sectorFr: "logiciels et données", sectorEn: "software and data" },
+  { name: "Northbridge Materials", sectorFr: "matériaux de construction", sectorEn: "building materials" },
+  { name: "Cobalt Health Systems", sectorFr: "santé et équipements médicaux", sectorEn: "healthcare and medical devices" },
+  { name: "Palladium Logistics", sectorFr: "transport et logistique", sectorEn: "transportation and logistics" },
+  { name: "Aurelia Consumer Brands", sectorFr: "biens de consommation", sectorEn: "consumer goods" },
+  { name: "Ferrovia Energy Partners", sectorFr: "énergie", sectorEn: "energy" },
+  { name: "Kestrel Aerospace", sectorFr: "aéronautique et défense", sectorEn: "aerospace and defense" },
+  { name: "Bellweather Retail Group", sectorFr: "distribution spécialisée", sectorEn: "specialty retail" },
+  { name: "Argent Telecom Holdings", sectorFr: "télécommunications", sectorEn: "telecommunications" },
+  { name: "Hartline Chemicals", sectorFr: "chimie industrielle", sectorEn: "industrial chemicals" },
+];
+
+function pickCompany(random, excludeName) {
+  const pool = excludeName ? COMPANIES.filter((company) => company.name !== excludeName) : COMPANIES;
+  return pool[Math.floor(random() * pool.length)];
+}
+
+function money(value) {
+  return `$${Math.round(value).toLocaleString("en-US")}M`;
+}
+
+function pct(value) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function fyLabel(baseYear, offset) {
+  return `FY${String((baseYear + offset) % 100).padStart(2, "0")}`;
+}
+
+function generateNarrative({ theme, difficulty, data, random, baseYear }) {
+  const company = pickCompany(random);
+  if (theme === "merger-model") {
+    const target = pickCompany(random, company.name);
+    const narrativeFr = `${company.name}, acteur du secteur ${company.sectorFr}, envisage l'acquisition de ${target.name} (secteur ${target.sectorFr}). L'acquéreur, dont le cours de bourse s'établit à $${data.buyer_share_price}, propose une prime de ${pct(data.premium)} sur le cours actuel de la cible. Vous devez déterminer si l'opération est relutive ou dilutive pour le bénéfice par action pro forma de ${company.name} en ${fyLabel(baseYear, 1)}.`;
+    const narrativeEn = `${company.name}, a ${company.sectorEn} company, is considering the acquisition of ${target.name} (${target.sectorEn}). The acquirer, trading at $${data.buyer_share_price} per share, is offering a ${pct(data.premium)} premium to the target's current price. Determine whether the deal is accretive or dilutive to ${company.name}'s pro forma earnings per share in ${fyLabel(baseYear, 1)}.`;
+    return { companyName: company.name, targetName: target.name, sectorFr: company.sectorFr, sectorEn: company.sectorEn, narrativeFr, narrativeEn };
+  }
+  if (theme === "lbo") {
+    const narrativeFr = `Un fonds de LBO étudie l'acquisition de ${company.name}, société du secteur ${company.sectorFr} générant un EBITDA de ${money(data.ebitda)}. L'opération serait financée à un multiple d'entrée de ${data.entry_multiple.toFixed(1)}x sur un horizon de détention de 5 ans (${fyLabel(baseYear, 1)}–${fyLabel(baseYear, 5)}). Construisez le modèle LBO pour déterminer le multiple de capital investi (MOM) et le taux de rentabilité interne (IRR) du sponsor à la sortie.`;
+    const narrativeEn = `A private equity sponsor is evaluating the acquisition of ${company.name}, a ${company.sectorEn} company generating ${money(data.ebitda)} of EBITDA. The deal would be financed at an entry multiple of ${data.entry_multiple.toFixed(1)}x over a 5-year holding period (${fyLabel(baseYear, 1)}–${fyLabel(baseYear, 5)}). Build the LBO model to determine the sponsor's money-on-money multiple (MOM) and internal rate of return (IRR) at exit.`;
+    return { companyName: company.name, sectorFr: company.sectorFr, sectorEn: company.sectorEn, narrativeFr, narrativeEn };
+  }
+  // dcf
+  if (difficulty === "advanced") {
+    const narrativeFr = `${company.name} regroupe deux activités dans le secteur ${company.sectorFr} : une division historique générant ${money(data.segment_a_revenue)} de chiffre d'affaires (marge d'EBITDA de ${pct(data.segment_a_margin)}) et une division de croissance générant ${money(data.segment_b_revenue)} (marge d'EBITDA de ${pct(data.segment_b_margin)}). Vous devez construire un DCF par segment sur l'horizon ${fyLabel(baseYear, 1)}–${fyLabel(baseYear, 5)} pour déterminer la valeur d'entreprise consolidée et le cours cible par action.`;
+    const narrativeEn = `${company.name} operates two divisions in the ${company.sectorEn} sector: a legacy division generating ${money(data.segment_a_revenue)} of revenue (${pct(data.segment_a_margin)} EBITDA margin) and a growth division generating ${money(data.segment_b_revenue)} (${pct(data.segment_b_margin)} EBITDA margin). Build a segment-level DCF over ${fyLabel(baseYear, 1)}–${fyLabel(baseYear, 5)} to determine the consolidated enterprise value and target share price.`;
+    return { companyName: company.name, sectorFr: company.sectorFr, sectorEn: company.sectorEn, narrativeFr, narrativeEn };
+  }
+  const narrativeFr = `Vous êtes analyste M&A et devez valoriser ${company.name}, un acteur du secteur ${company.sectorFr}. La société a réalisé un chiffre d'affaires de ${money(data.revenue)} sur le dernier exercice, avec une marge d'EBITDA de ${pct(data.ebitda_margin)} et une croissance annuelle attendue de ${pct(data.growth)}. Construisez une valorisation DCF sur l'horizon ${fyLabel(baseYear, 1)}–${fyLabel(baseYear, 5)} pour déterminer si le titre est sous-évalué au cours actuel.`;
+  const narrativeEn = `You are an M&A analyst tasked with valuing ${company.name}, a ${company.sectorEn} company. The company generated ${money(data.revenue)} of revenue last fiscal year, with an EBITDA margin of ${pct(data.ebitda_margin)} and expected annual growth of ${pct(data.growth)}. Build a DCF valuation over ${fyLabel(baseYear, 1)}–${fyLabel(baseYear, 5)} to determine whether the stock is undervalued at the current price.`;
+  return { companyName: company.name, sectorFr: company.sectorFr, sectorEn: company.sectorEn, narrativeFr, narrativeEn };
+}
+
 export const CORE_OUTPUTS = {
   dcf: ["ufcf_y1", "ufcf_y2", "ufcf_y3", "ufcf_y4", "ufcf_y5", "pv_ufcf", "terminal_value", "enterprise_value", "equity_value", "share_price", "sensitivity_low", "sensitivity_high"],
   lbo: ["entry_ev", "entry_equity", "sources_total", "uses_total", "fcf_y1", "fcf_y2", "fcf_y3", "fcf_y4", "fcf_y5", "debt_y1", "debt_y2", "debt_y3", "debt_y4", "debt_y5", "exit_ev", "exit_equity", "mom", "irr", "sensitivity_low", "sensitivity_high"],
@@ -30,12 +86,16 @@ export function generateCaseStatement({ theme, difficulty, seed }) {
     ...coreOutputIds.map((id) => answerField(id, "results", 1 / coreOutputIds.length)),
     ...methodOutputIds.map((id) => answerField(id, "method", 1 / methodOutputIds.length)),
   ];
+  const baseYear = new Date().getFullYear();
+  const narrative = generateNarrative({ theme, difficulty, data, random, baseYear });
   return {
     templateId: `${theme}-${difficulty}-v1`,
     theme,
     difficulty,
     seed,
+    baseYear,
     title: `${title(theme)} — ${difficulty}`,
+    ...narrative,
     durationOptions: [30, 45, 60],
     instructions: instructions(theme, difficulty),
     sections: [{ id: "inputs", title: "Inputs (USD millions, except per-share data)", fields: Object.entries(data).map(([id, value]) => inputField(id, value)) }],
@@ -45,6 +105,10 @@ export function generateCaseStatement({ theme, difficulty, seed }) {
       rubric: "Assess whether the recommendation follows the stated EPS accretion/dilution, leverage constraints, synergies, and integration costs. Return JSON with score (0-100) and concise feedback.",
     } : null,
   };
+}
+
+export function caseFyLabel(baseYear, offset) {
+  return fyLabel(baseYear, offset);
 }
 
 function publicInputs(theme, difficulty, random) {

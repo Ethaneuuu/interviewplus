@@ -31,6 +31,14 @@ assert(themeJs.includes("injectThemeToggle"), "Expected theme.js to inject the t
 
 const buildScript = await fs.readFile(path.join(projectRoot, "scripts/build-static.mjs"), "utf8");
 assert(buildScript.includes("assets/js/theme.js"), "Expected build-static.mjs to ship assets/js/theme.js");
+assert(buildScript.includes("assets/js/mobile-nav.js"), "Expected build-static.mjs to ship assets/js/mobile-nav.js");
+
+const mobileNavJs = await fs.readFile(path.join(projectRoot, "assets/js/mobile-nav.js"), "utf8");
+assert(mobileNavJs.includes("nav-open"), "Expected mobile-nav.js to toggle the nav-open class");
+assert(mobileNavJs.includes("navToggle"), "Expected mobile-nav.js to inject the nav toggle button");
+
+assert(/\.topbar\s*{[^}]*z-index: 30/s.test(css), "Expected .topbar to have an explicit z-index so its mobile nav dropdown paints above later sections");
+assert(/@media \(max-width: 900px\)\s*{\s*\.nav-toggle\s*{\s*display: inline-flex/.test(css), "Expected the nav toggle to appear at the mobile breakpoint");
 
 const pageEntries = [
   "auth.js",
@@ -45,6 +53,7 @@ const pageEntries = [
 for (const entry of pageEntries) {
   const source = await fs.readFile(path.join(projectRoot, "assets/js", entry), "utf8");
   assert(source.includes('import "./theme.js";'), `Expected assets/js/${entry} to import theme.js`);
+  assert(source.includes('import "./mobile-nav.js";'), `Expected assets/js/${entry} to import mobile-nav.js`);
 }
 
 const pages = [

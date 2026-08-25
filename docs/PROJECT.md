@@ -28,7 +28,8 @@ Les réponses sont sauvegardées avant la correction. Après soumission, une ses
 - **Cas :** `assets/js/case-templates.js` génère les énoncés publics par graine ; `netlify/functions/lib/case-grader.mjs` conserve les formules et la notation côté serveur.
 - **API :** `netlify/functions/correct.mjs` gère HTTP, auth, limites et idempotence ; `netlify/functions/lib/correction-service.mjs` valide, route, borne les délais et appelle OpenRouter.
 - **Interface :** `case-setup.html` choisit thème, difficulté et durée ; `case-session.html` affiche l'énoncé après lancement ; `results.html` rend Questions et Cas. Les pages historiques restent `index.html`, `auth.html`, `setup.html`, `session.html` et `profile.html`.
-- **Déploiement :** `supabase/schema.sql` porte tables/RLS/bucket ; `netlify.toml` route la Function ; `scripts/build-static.mjs` produit l'allowlist publique de 34 fichiers dans `dist`.
+- **Logos :** `assets/img/logos/*.svg` sont les vrais wordmarks officiels (sourcés Wikimedia Commons, domaine public) affichés dans le bandeau de confiance ; `assets/img/logos/incoming/` est un dossier de dépôt gitignoré pour fournir un nouveau logo à intégrer sans le committer par erreur.
+- **Déploiement :** `supabase/schema.sql` porte tables/RLS/bucket ; `netlify.toml` route la Function ; `scripts/build-static.mjs` produit l'allowlist publique de 35 fichiers dans `dist`.
 - **Tests :** les scripts autonomes `tests/*-smoke.mjs` couvrent contrats, sécurité, atomicité, i18n, persistance, build et logique financière sans framework de test.
 
 Le build statique exclut Functions, SQL, tests, documentation, classeurs et `keyword-overrides.js`. Netlify regroupe séparément les imports nécessaires à la Function.

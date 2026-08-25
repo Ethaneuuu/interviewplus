@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>try{var ipt=localStorage.getItem("ip-theme");if(ipt==="light"||ipt==="dark")document.documentElement.setAttribute("data-theme",ipt);}catch(e){}</script>
+  <title>InterviewPlus | Nouvelle session</title>
+  <meta name="description" content="Choisissez entre une session de questions d'entretien ou un cas pratique chronometre.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/app.css">
+  <script src="./assets/js/config.js"></script>
+  <script type="module" defer src="./assets/js/new-session.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html"><img class="brand-logo" src="./assets/img/interviewplus-logo.svg" alt="InterviewPlus"></a>
+      <nav class="topnav" aria-label="Navigation principale">
+        <a class="nav-link" href="./index.html">Accueil</a>
+        <a class="nav-link is-active" aria-current="page" href="./new-session.html">Nouvelle session</a>
+        <a class="nav-link" href="./case-setup.html">Cas pratiques</a>
+        <a class="nav-link" href="./results.html">Sessions</a>
+        <a class="nav-link" href="./profile.html">Profil</a>
+        <a class="nav-link" id="authNavLink" href="./auth.html">Connexion</a>
+      </nav>
+    </header>
+
+    <main class="page narrow-page">
+      <section class="page-header simple-header">
+        <div>
+          <p class="eyebrow">Nouvelle session</p>
+          <h1>Que voulez-vous travailler ?</h1>
+          <p class="page-intro">Choisissez un format d'entrainement.</p>
+        </div>
+      </section>
+
+      <section class="grid grid-2 choice-grid">
+        <a class="choice-card" href="./setup.html">
+          <span class="choice-card-icon">Q&amp;A</span>
+          <h2>Session questions</h2>
+          <p>Entretien chronometre : questions techniques, comportementales et sectorielles avec correction detaillee.</p>
+        </a>
+        <a class="choice-card" href="./case-setup.html">
+          <span class="choice-card-icon">CAS</span>
+          <h2>Cas pratique</h2>
+          <p>Construisez un modele DCF, LBO ou merger sous pression, sur un cas genere avec une entreprise et des donnees uniques.</p>
+        </a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>InterviewPlus</span>
+      <span>Preparation M&A premium</span>
+      <a href="mailto:contact@interviewplus.fr">Contact</a>
+    </footer>
+  </div>
+</body>
+</html>
