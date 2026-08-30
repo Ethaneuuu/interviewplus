@@ -11,9 +11,13 @@ import {
   previousQuestion,
   saveAnswer,
   goToQuestion,
+  pauseActiveSession,
+  resumeActiveSession,
+  discardActiveSession,
 } from "./store.js";
 import { t } from "./i18n.js";
 import { wireAuthNavLink } from "./nav.js";
+import { installSessionExit } from "./session-exit.js";
 import "./theme.js";
 import "./mobile-nav.js";
 
@@ -37,6 +41,7 @@ const elements = {
   sessionLayout: document.getElementById("sessionLayout"),
   toggleNav: document.getElementById("toggleNav"),
   sessionMessage: document.getElementById("sessionMessage"),
+  sessionExit: document.getElementById("sessionExit"),
 };
 
 let timerId = null;
@@ -50,7 +55,20 @@ if (!getCurrentUser()) {
 }
 wireAuthNavLink();
 await hydrateSessionFromQuery();
+if (getActiveSession()?.status === "paused") resumeActiveSession();
 bindEvents();
+installSessionExit({
+  container: elements.sessionExit,
+  isRunning: () => getActiveSession()?.status === "running",
+  onPause: () => {
+    pauseActiveSession();
+    window.location.href = "./profile.html";
+  },
+  onQuit: () => {
+    discardActiveSession();
+    window.location.href = "./index.html";
+  },
+});
 await render();
 startTimer();
 

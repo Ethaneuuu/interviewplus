@@ -453,6 +453,37 @@ export function getActiveSession() {
   return buildSessionView(state.activeSession);
 }
 
+// --- Pause / resume / quit -------------------------------------------------
+// A paused session keeps every field needed to resume (answers, current
+// index, remaining time) and is never auto-finalized because syncActiveSession
+// only acts on "running" sessions.
+export function pauseActiveSession() {
+  const session = state.activeSession;
+  if (!session || session.status !== "running") return getActiveSession();
+  session.pausedRemainingMs = Math.max(0, new Date(session.endsAt).getTime() - Date.now());
+  session.pausedAt = new Date().toISOString();
+  session.status = "paused";
+  persist();
+  return getActiveSession();
+}
+
+export function resumeActiveSession() {
+  const session = state.activeSession;
+  if (!session || session.status !== "paused") return getActiveSession();
+  const remaining = Number(session.pausedRemainingMs);
+  session.endsAt = new Date(Date.now() + (Number.isFinite(remaining) ? remaining : 0)).toISOString();
+  session.status = "running";
+  delete session.pausedRemainingMs;
+  delete session.pausedAt;
+  persist();
+  return getActiveSession();
+}
+
+export function discardActiveSession() {
+  state.activeSession = null;
+  persist();
+}
+
 export function saveAnswer(index, answer) {
   if (!state.activeSession || state.activeSession.status !== "running") {
     return null;

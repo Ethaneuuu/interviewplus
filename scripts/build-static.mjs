@@ -12,7 +12,8 @@ const publicFiles = [
   "assets/img/logos/kkr.svg", "assets/img/logos/lazard.svg", "assets/img/logos/morgan-stanley.svg", "assets/img/logos/rothschild.svg",
   "assets/js/auth.js", "assets/js/backend.js", "assets/js/case-session.js", "assets/js/case-setup.js", "assets/js/case-templates.js",
   "assets/js/config.js", "assets/js/correction-client.js", "assets/js/home.js", "assets/js/i18n.js", "assets/js/keywords.js",
-  "assets/js/mobile-nav.js", "assets/js/nav.js", "assets/js/new-session.js", "assets/js/profile.js", "assets/js/results.js", "assets/js/session.js", "assets/js/setup.js",
+  "assets/js/mobile-nav.js", "assets/js/nav.js", "assets/js/new-session.js", "assets/js/profile.js", "assets/js/results.js",
+  "assets/js/session-exit.js", "assets/js/session.js", "assets/js/setup.js",
   "assets/js/store.js", "assets/js/theme.js", "assets/js/xlsx.full.min.js",
 ];
 

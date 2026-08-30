@@ -1,7 +1,8 @@
-import { continueAsGuest, finalizeCaseSession, getActiveSession, getCurrentUser, initializeApp, requireAuthorizedAccess, saveCaseAnswer } from "./store.js";
+import { continueAsGuest, discardActiveSession, finalizeCaseSession, getActiveSession, getCurrentUser, initializeApp, pauseActiveSession, requireAuthorizedAccess, resumeActiveSession, saveCaseAnswer } from "./store.js";
 import { caseInputLabel, caseOutputLabel, caseSessionInstructions, caseSessionTitle, t } from "./i18n.js";
 import { caseFyLabel } from "./case-templates.js";
 import { wireAuthNavLink } from "./nav.js";
+import { installSessionExit } from "./session-exit.js";
 import "./theme.js";
 import "./mobile-nav.js";
 
@@ -12,6 +13,7 @@ const statementRoot = document.getElementById("caseStatement");
 const answersRoot = document.getElementById("caseAnswers");
 const finishButton = document.getElementById("finishCase");
 const message = document.getElementById("caseMessage");
+const exitContainer = document.getElementById("caseExit");
 let isFinalizing = false;
 let autoFinalizationAttempted = false;
 
@@ -19,6 +21,19 @@ await initializeApp({ loadDataset: false });
 requireAuthorizedAccess("case-session.html");
 if (!getCurrentUser()) await continueAsGuest();
 wireAuthNavLink();
+if (getActiveSession()?.status === "paused") resumeActiveSession();
+installSessionExit({
+  container: exitContainer,
+  isRunning: () => getActiveSession()?.status === "running",
+  onPause: () => {
+    pauseActiveSession();
+    window.location.href = "./profile.html";
+  },
+  onQuit: () => {
+    discardActiveSession();
+    window.location.href = "./index.html";
+  },
+});
 render();
 startTimer();
 
