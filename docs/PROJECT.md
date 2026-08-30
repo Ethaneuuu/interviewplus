@@ -292,6 +292,56 @@ Quinze points de bug/incohérence corrigés dans le code existant, sans refonte,
 - **Pause / quitter** (`assets/js/session-exit.js`, partagé Questions + Cas) : bouton « Mettre en pause » (sauve et sort), bouton « Quitter » ouvrant un `<dialog>` natif « continuer / mettre en pause et sauvegarder / quitter définitivement » ; garde `beforeunload` pendant la session. `store.pauseActiveSession` gèle le temps restant et garde réponses + index ; `resumeActiveSession` relance le compte à rebours ; une session en pause n'est jamais corrigée automatiquement. Reprise depuis la bannière de `profile.html`. Nouveau `tests/session-pause-resume-smoke.mjs`.
 - Vérification : **30/30 smokes verts** (hors contrat HTTP loopback), `node scripts/build-static.mjs` → **40 fichiers**, `git diff --check` propre, QA visuelle du tunnel Cas (nouvelle mise en page, pause, labels N+) à 1440 px.
 
+#### Reprise — à checker avant de déployer ce lot en ligne
+
+**État au moment de la pause :** les 6 commits ci-dessous sont sur `main` **en local, non poussés**. `git push origin main` déclenche le build Netlify et met le lot en production. Ne pousser qu'après avoir tout validé ci-dessous.
+
+```
+368ff00 docs: log the 15-point UX correctness batch
+9a1653f fix(case): relabel the explicit year output labels to N+ notation
+580d53a feat: pause / quit flow for question sessions and practical cases
+b2ddfd5 refactor(case): inline data into the prompt, single answer table, N+ years
+2a95951 fix: gate "Terminer la session" on locally-validated answers
+771b4a1 fix: stable header + consolidated "S'entraîner" nav + mono logos
+```
+
+**Étape 0 — Claude réactive le localhost.** Au début de la session de reprise, demander à Claude de relancer le serveur de dev :
+
+```bash
+node serve-local.mjs        # → http://localhost:4173/
+```
+
+Le site est visible sur **http://localhost:4173/**. Port occupé → `node serve-local.mjs --port 3000`.
+
+**Étape 1 — tests + build (automatique, ~1 min).** Claude lance :
+
+```bash
+for test in tests/*-smoke.mjs; do
+  [ "$test" = "tests/local-correction-contract-smoke.mjs" ] || node "$test" || exit 1
+done
+node scripts/build-static.mjs      # attendu : "Built 40 public files in dist"
+git diff --check                   # attendu : aucune sortie
+```
+
+Attendu : **30 smokes verts**, **40 fichiers**, `git diff --check` muet. Les tests utilisent des fakes — aucun crédit OpenRouter/Supabase dépensé.
+
+**Étape 2 — QA visuelle desktop (manuelle, ~10 min) sur http://localhost:4173/ :**
+
+1. **Header stable** — sur chaque page, après un refresh (F5) *et* après une navigation interne : le lien d'auth ne clignote pas entre « Connexion » et « Mon espace ».
+2. **Nav consolidée** — une seule entrée « S'entraîner » dans la barre ; elle mène à `new-session.html` (choix Questions / Cas). Plus de « Cas pratique », « Session » ni « Profil » séparés.
+3. **Espace unique** — `profile.html` affiche profil + historique + bannière de reprise + graphiques ; « Mon espace » n'est plus une destination indépendante.
+4. **Accueil** — logos en noir et blanc, alignés horizontalement, avec un fondu progressif à gauche et à droite ; **plus aucune** mention « … compte(s) synchronisé(s) » dans le hero, ni espace vide à la place.
+5. **Fin de session Questions sans réponses** — lancer une session, laisser des réponses vides, cliquer « Terminer la session » : aucun appel réseau (onglet Network), la session ne se termine pas, message « Vous n'avez pas répondu aux questions suivantes… » + numéros des questions listés et surlignés dans le navigateur. Refaire avec seulement une partie des réponses remplies.
+6. **Double-clic** — double-cliquer « Terminer la session » avec toutes les réponses : une seule requête `/api/correct`.
+7. **Cas pratique** — écran dans l'ordre : titre « Énoncé » → contenu complet du cas → titre « Réponses » → zone de saisie pleine largeur. Les chiffres du cas sont dans la prose de l'énoncé (« Hypothèses retenues : … ») ; **pas** de tableau « Données du cas » séparé ; un `<details>` « Rappel des données chiffrées » repliable est disponible près des réponses.
+8. **Tableau de réponses** — un seul tableau (résultats + méthode fusionnés). En-têtes de colonnes en `N+1 … N+5` (jamais `FY27`/`FY28`). **Chaque cellule affichée est éditable**, y compris les dernières années — vérifier en tapant une valeur dans chaque colonne.
+9. **Pause / Quitter** — boutons présents dans le bandeau de session (Questions *et* Cas). « Mettre en pause » sauve et sort ; « Quitter » ouvre une fenêtre avec 3 choix (continuer / mettre en pause et sauvegarder / quitter définitivement). Tenter une navigation pendant une session en cours → avertissement du navigateur.
+10. **Reprise** — une session mise en pause réapparaît dans la bannière de `profile.html` et se reprend avec réponses + question courante + progression intactes, chrono relancé.
+
+**Étape 3 — QA visuelle mobile 390 px (manuelle).** Non faisable via l'outil Chrome de Claude (fenêtre bloquée à ~1372 px). À faire soi-même : DevTools → device toolbar → 390 px, sur l'accueil, `new-session`, `profile`, le tableau de réponses Cas et la fenêtre « Quitter ». Vérifier que rien ne déborde horizontalement.
+
+**Étape 4 — déployer.** Tout vert → dire à Claude de pousser, ou : `git push origin main`. Netlify build et publie automatiquement. Vérifier ensuite en live : accueil `200`, `/api/correct` anonyme `401 AUTH_REQUIRED`.
+
 ### Lot design + UX (24–30 août 2026)
 
 - **Logos réels** (`920e7dc`) : les 8 placeholders SVG du bandeau de confiance remplacés par les vrais wordmarks (Goldman Sachs, J.P. Morgan, Morgan Stanley, Evercore, Lazard, Rothschild & Co, Blackstone, KKR), sourcés Wikimedia Commons.
@@ -318,7 +368,7 @@ Quinze points de bug/incohérence corrigés dans le code existant, sans refonte,
 
 - **QA visuelle 390 px.** Le desktop clair/sombre a été validé le 30 août (voir État d'avancement) mais pas le mobile : `resize_window` de l'extension Chrome ne descend pas sous ~1372 px ici. À faire dans un vrai navigateur redimensionnable ou via les DevTools (device toolbar), en priorité sur la nav compacte (`assets/js/mobile-nav.js`), la grille de thèmes et la grille de réponses Cas.
 - **Cold start Netlify réel** via la CLI (`netlify dev`/`netlify deploy`), jamais rejoué localement faute de CLI installable dans le sandbox ; la Function est vérifiée fonctionnelle en production par requêtes live, mais pas par ce test spécifique.
-- **Bugs du site** signalés par l'utilisateur : à recenser et traiter (prochaine session de travail).
+- **Lot correctifs UX (30 août) — non déployé.** 6 commits sur `main` en local, non poussés. Reprendre par la checklist « Reprise — à checker avant de déployer ce lot en ligne » (section État d'avancement) : Claude réactive `node serve-local.mjs` (http://localhost:4173/), relance tests + build, puis QA visuelle des 10 parcours, puis `git push origin main`.
 - **Contrat HTTP loopback** (`tests/local-correction-contract-smoke.mjs`) : non rejoué dans la passe du 30 août, à relancer dans un environnement autorisant le loopback avant le prochain merge touchant la Function.
 - **Sessions payantes** : voir roadmap ci-dessous, toujours hors périmètre.
 
