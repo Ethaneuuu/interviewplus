@@ -29,7 +29,7 @@ Les réponses sont sauvegardées avant la correction. Après soumission, une ses
 - **API :** `netlify/functions/correct.mjs` gère HTTP, auth, limites et idempotence ; `netlify/functions/lib/correction-service.mjs` valide, route, borne les délais et appelle OpenRouter.
 - **Interface :** `index.html` (accueil), `auth.html`, `new-session.html` (choix Questions / Cas), `setup.html` + `session.html` (tunnel Questions), `case-setup.html` + `case-session.html` (tunnel Cas), `results.html` (rend Questions et Cas) et `profile.html`. `assets/js/nav.js` standardise la barre de navigation et le lien Connexion/Mon espace sur toutes les pages ; `assets/js/mobile-nav.js` gère le menu compact ; `assets/js/theme.js` applique le thème clair/sombre choisi (stocké en `localStorage`, script anti-FOUC inline sur les 8 pages).
 - **Logos :** `assets/img/logos/*.svg` sont les vrais wordmarks officiels (sourcés Wikimedia Commons, domaine public) affichés dans le bandeau de confiance ; `assets/img/logos/incoming/` est un dossier de dépôt gitignoré pour fournir un nouveau logo à intégrer sans le committer par erreur.
-- **Déploiement :** `supabase/schema.sql` porte tables/RLS/bucket ; `netlify.toml` route la Function ; `scripts/build-static.mjs` produit l'allowlist publique de 39 fichiers dans `dist`.
+- **Déploiement :** `supabase/schema.sql` porte tables/RLS/bucket ; `netlify.toml` route la Function ; `scripts/build-static.mjs` produit l'allowlist publique de 40 fichiers dans `dist`.
 - **Tests :** les scripts autonomes `tests/*-smoke.mjs` couvrent contrats, sécurité, atomicité, i18n, persistance, build et logique financière sans framework de test.
 
 Le build statique exclut Functions, SQL, tests, documentation, classeurs et `keyword-overrides.js`. Netlify regroupe séparément les imports nécessaires à la Function.
@@ -276,6 +276,21 @@ node tests/local-correction-contract-smoke.mjs
 La suite utilise des fakes : elle ne dépense aucun crédit et ne contacte pas OpenRouter/Supabase live. `OPENROUTER_UNAVAILABLE` signifie que les réponses fournisseur n'ont pas été obtenues/validées dans le budget. Les logs `PRIVATE_QUESTION_FILE_UNAVAILABLE`, `QUESTION_BANK_ERROR` et `CORRECTION_INTERNAL_ERROR` permettent de distinguer corpus indisponible, corpus invalide et panne interne sans exposer de donnée utilisateur.
 
 ## État d'avancement — 30 août 2026
+
+### Lot correctifs UX (30 août 2026)
+
+Quinze points de bug/incohérence corrigés dans le code existant, sans refonte, en réutilisant composants et patterns actuels.
+
+- **Header stable** : `#authNavLink` est livré `hidden` et n'est révélé que par `wireAuthNavLink()` une fois l'auth résolue — plus de bascule visible « Connexion » ↔ « Mon espace ».
+- **Nav consolidée** : « Nouvelle session » + « Cas pratiques » + « Sessions » remplacés par une seule entrée « S'entraîner » → `new-session.html` (page de choix Questions / Cas). Les doublons « Profil » / « Sessions » retirés ; `profile.html` devient l'espace unique « Sessions & progression » avec historique, bannière de reprise et graphiques.
+- **Hero** : suppression de la mention « <nom> | compte synchronisé » et de son emplacement vide.
+- **Logos** : monochromes en CSS (`filter: grayscale(1) brightness(0)`, adapté clair/sombre), rangée horizontale, fondu progressif sur les bords via `mask-image` ; générique (tout `img` de la piste est stylé).
+- **Fin de session Questions** : `finalizeSession({ requireComplete })` fait une validation locale AVANT tout appel API ; réponses manquantes → aucune requête, session non terminée, message « Vous n'avez pas répondu aux questions suivantes… » + numéros listés et surlignés dans le navigateur. Garde in-flight contre le double-clic. Nouveau `tests/session-finish-validation-smoke.mjs`.
+- **Affichage des cas** : plus de tableau « Données du cas » séparé — les chiffres sont tissés dans l'énoncé (liste « Hypothèses retenues ») + un `<details>` « Rappel des données chiffrées » repliable dans la zone de saisie. Écran structuré « Énoncé » (titre explicite) → contenu → « Réponses » → tableau de saisie pleine largeur, empilé et responsive.
+- **Tableau de réponses unique** : résultats et méthode fusionnés en un seul tableau (le grader lit toujours `field.category` du statement, inchangé).
+- **Colonnes temporelles** : `N+1`…`N+5` au lieu de `FY27`/`FY28` partout (templates, labels de sortie, en-têtes de grille) ; une série d'années partielle devient des lignes individuelles pour que chaque cellule visible soit réellement éditable (corrige les cellules mortes 2028-2031).
+- **Pause / quitter** (`assets/js/session-exit.js`, partagé Questions + Cas) : bouton « Mettre en pause » (sauve et sort), bouton « Quitter » ouvrant un `<dialog>` natif « continuer / mettre en pause et sauvegarder / quitter définitivement » ; garde `beforeunload` pendant la session. `store.pauseActiveSession` gèle le temps restant et garde réponses + index ; `resumeActiveSession` relance le compte à rebours ; une session en pause n'est jamais corrigée automatiquement. Reprise depuis la bannière de `profile.html`. Nouveau `tests/session-pause-resume-smoke.mjs`.
+- Vérification : **30/30 smokes verts** (hors contrat HTTP loopback), `node scripts/build-static.mjs` → **40 fichiers**, `git diff --check` propre, QA visuelle du tunnel Cas (nouvelle mise en page, pause, labels N+) à 1440 px.
 
 ### Lot design + UX (24–30 août 2026)
 
