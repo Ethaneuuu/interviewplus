@@ -15,7 +15,7 @@ const message = document.getElementById("caseMessage");
 let isFinalizing = false;
 let autoFinalizationAttempted = false;
 
-await initializeApp();
+await initializeApp({ loadDataset: false });
 requireAuthorizedAccess("case-session.html");
 if (!getCurrentUser()) await continueAsGuest();
 wireAuthNavLink();

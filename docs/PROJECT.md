@@ -1,6 +1,6 @@
 # InterviewPlus — documentation du projet
 
-État décrit au **23 août 2026**. Cette documentation décrit le worktree `feat/openrouter-cas-pratiques`; elle ne signifie pas que le site est déployé, que les migrations ont été appliquées ou que des secrets de production sont configurés.
+État décrit au **30 août 2026**, branche `main` déployée en production sur Netlify. Les migrations Supabase n'ont pas été rejouées sur un projet de staging dans cette passe et aucun appel OpenRouter réel avec clé de production n'a été émis depuis l'environnement de travail local.
 
 ## Architecture
 
@@ -27,9 +27,9 @@ Les réponses sont sauvegardées avant la correction. Après soumission, une ses
 - **Questions :** `assets/js/keywords.js` extrait les concepts ; `assets/js/keyword-overrides.js` contient les exceptions éditoriales ; `netlify/functions/lib/question-bank.mjs` charge et met en cache le classeur privé.
 - **Cas :** `assets/js/case-templates.js` génère les énoncés publics par graine ; `netlify/functions/lib/case-grader.mjs` conserve les formules et la notation côté serveur.
 - **API :** `netlify/functions/correct.mjs` gère HTTP, auth, limites et idempotence ; `netlify/functions/lib/correction-service.mjs` valide, route, borne les délais et appelle OpenRouter.
-- **Interface :** `case-setup.html` choisit thème, difficulté et durée ; `case-session.html` affiche l'énoncé après lancement ; `results.html` rend Questions et Cas. Les pages historiques restent `index.html`, `auth.html`, `setup.html`, `session.html` et `profile.html`.
+- **Interface :** `index.html` (accueil), `auth.html`, `new-session.html` (choix Questions / Cas), `setup.html` + `session.html` (tunnel Questions), `case-setup.html` + `case-session.html` (tunnel Cas), `results.html` (rend Questions et Cas) et `profile.html`. `assets/js/nav.js` standardise la barre de navigation et le lien Connexion/Mon espace sur toutes les pages ; `assets/js/mobile-nav.js` gère le menu compact ; `assets/js/theme.js` applique le thème clair/sombre choisi (stocké en `localStorage`, script anti-FOUC inline sur les 8 pages).
 - **Logos :** `assets/img/logos/*.svg` sont les vrais wordmarks officiels (sourcés Wikimedia Commons, domaine public) affichés dans le bandeau de confiance ; `assets/img/logos/incoming/` est un dossier de dépôt gitignoré pour fournir un nouveau logo à intégrer sans le committer par erreur.
-- **Déploiement :** `supabase/schema.sql` porte tables/RLS/bucket ; `netlify.toml` route la Function ; `scripts/build-static.mjs` produit l'allowlist publique de 35 fichiers dans `dist`.
+- **Déploiement :** `supabase/schema.sql` porte tables/RLS/bucket ; `netlify.toml` route la Function ; `scripts/build-static.mjs` produit l'allowlist publique de 39 fichiers dans `dist`.
 - **Tests :** les scripts autonomes `tests/*-smoke.mjs` couvrent contrats, sécurité, atomicité, i18n, persistance, build et logique financière sans framework de test.
 
 Le build statique exclut Functions, SQL, tests, documentation, classeurs et `keyword-overrides.js`. Netlify regroupe séparément les imports nécessaires à la Function.
@@ -275,11 +275,24 @@ node tests/local-correction-contract-smoke.mjs
 
 La suite utilise des fakes : elle ne dépense aucun crédit et ne contacte pas OpenRouter/Supabase live. `OPENROUTER_UNAVAILABLE` signifie que les réponses fournisseur n'ont pas été obtenues/validées dans le budget. Les logs `PRIVATE_QUESTION_FILE_UNAVAILABLE`, `QUESTION_BANK_ERROR` et `CORRECTION_INTERNAL_ERROR` permettent de distinguer corpus indisponible, corpus invalide et panne interne sans exposer de donnée utilisateur.
 
-## État d'avancement — 23 août 2026
+## État d'avancement — 30 août 2026
+
+### Lot design + UX (24–30 août 2026)
+
+- **Logos réels** (`920e7dc`) : les 8 placeholders SVG du bandeau de confiance remplacés par les vrais wordmarks (Goldman Sachs, J.P. Morgan, Morgan Stanley, Evercore, Lazard, Rothschild & Co, Blackstone, KKR), sourcés Wikimedia Commons.
+- **Refonte liquid-glass clair/sombre** (`9c6dbf9`) : système de couleurs en variables CSS avec trois états — clair par défaut sur `:root`, override `prefers-color-scheme: dark`, override explicite `[data-theme]` pour le toggle manuel persisté en `localStorage` (`assets/js/theme.js`). Topbar, hero et bandeau roadmap restent un « chrome » sombre fixe dans les deux thèmes ; le reste bascule. Script anti-FOUC inline sur les 8 pages. Corrige au passage un `.feature-grid` déclaré deux fois. Nouveau smoke `tests/theme-system-smoke.mjs`.
+- **Overhaul session/cas + navigation** (`40e1b0f`) : Cas pratiques génère une narration (entreprise et chiffres aléatoires par graine) et une grille de réponses type Excel à colonnes FY ; page Session avec nav de questions repliable et espacement corrigé ; page Setup débarrassée du bandeau admin ; nouvelle page `new-session.html` (choix Questions / Cas) ; correction de `requireAuthorizedAccess()` qui prenait une session invité périmée pour une connexion valide et laissait des invités franchir le mur de login ; nav standardisée via `assets/js/nav.js`. `scripts/generate-test-history.mjs` seede un historique réaliste pour la QA.
+- **Nettoyage post-audit** (`0e47fb8`, `bdd952d`, `97d1134`, `29a71f8`, `521d29a`, plan `docs/superpowers/plans/2026-08-24-audit-cleanup.md`) : accueil ne précharge plus le classeur de 2,3 Mo (`initializeApp({ loadDataset: false })`, nouveau `tests/dataset-preload-skip-smoke.mjs`) ; règle de layout `.section-head` ajoutée ; grille de thèmes à 6 cartes remise en 3 colonnes ; focus clavier visible et respect de `prefers-reduced-motion` ; CSS mort `.score-shell`/`.score-ring` supprimé.
+- **Découplage classeur, pages sans corpus** (30 août) : `auth.js`, `profile.js`, `case-setup.js`, `case-session.js` passent aussi `loadDataset: false` ; `profile.html` ne charge plus le bundle `xlsx.full.min.js`. `tests/dataset-preload-skip-smoke.mjs` vérifie statiquement les 6 pages opt-out.
+- **Bug dev corrigé** (30 août) : `serve-local.mjs` ne servait pas `new-session.html` (absent de `publicRootFiles`) — la page vers laquelle pointe le lien de nav « Nouvelle session » renvoyait 404 en local (la prod via `dist` n'était pas touchée). Ajout à l'allowlist + garde dans `tests/deployment-smoke.mjs` : le serveur local doit servir toutes les pages HTML racine du build.
+- **QA visuelle desktop** (30 août, via l'extension Chrome) : accueil, `new-session`, `auth`, `setup`, `case-setup`, `results`, `profile` vérifiés en thème clair **et** sombre à 1440 px — rendu propre, nav cohérente, formulaires et cartes lisibles, toggle de thème fonctionnel. La brève teinte grise du fond de `profile.html` juste après le toggle est la transition CSS `background-color`, pas un bug. **QA 390 px non faite** : `resize_window` de l'extension ne réduit pas la fenêtre sous ~1372 px dans cet environnement.
+- Vérification 30 août sur `main` : **27/27 smokes verts** (hors contrat HTTP loopback, non rejoué dans cette passe), `node scripts/build-static.mjs` → **39 fichiers**, `git diff --check` propre.
+
+### Lot OpenRouter Cas pratiques (SDD, 22–23 août 2026)
 
 - Plan `docs/superpowers/plans/2026-08-22-openrouter-cas-pratiques.md` : 8/8 tâches complétées et approuvées (ledger SDD).
 - Revue finale : Critical 1/2, Important 1-7 et Minor 1/2 tous fermés, dernière vague `APPROVED_B4` (`.superpowers/sdd/2026-08-22-openrouter-cas-pratiques/final-review.md`). Commits fusionnés sur `main` : `75a7610` (frontière OpenRouter sécurisée) puis `5e43410` (fermeture des vagues B2.1, B3.1 et C — deadline complète, loader partagé à waiters indépendants, trajet local Bearer, limites chaudes, atomicité, retour auth Case, i18n des 9 cas, historique FR).
-- Vérification la plus récente sur `main` fusionné : **25/25 smokes verts, y compris le contrat HTTP local en loopback** (précédemment bloqué par un sandbox, rejoué avec succès), oracle **9/9** au maximum attendu avec **10 000 graines**, build statique **34 fichiers**, syntaxe/diff/secrets verts.
+- Vérification de ce lot sur `main` fusionné : **25/25 smokes verts, y compris le contrat HTTP local en loopback** (précédemment bloqué par un sandbox, rejoué avec succès), oracle **9/9** au maximum attendu avec **10 000 graines**, build statique **34 fichiers** (39 après le lot design), syntaxe/diff/secrets verts.
 - `main` fusionné et déployé en production sur Netlify (voir section Netlify ci-dessus) ; GitHub Pages retiré (`2c58dad`), site vérifié 404 après désactivation.
 - Documentation resynchronisée avec l'infra réelle (`cf786da`) : `ACCES_PRIVE_GITHUB_PAGES.md` renommé `ACCES_PRIVE.md` et réécrit pour Netlify, `AUDIT_TECHNIQUE.md` marqué comme instantané historique.
 - Nettoyage ponytail (audit + review, `4afd63f`) : suppression de `vercel.json`, `.nojekyll`, `serve-local.ps1`/`stop-local.ps1` (doublon Windows jamais mis à jour, sans route `/api/correct`), des deux guides `guide_ia_correction_*.md` sans référence, du prototype React `Nouveau site/` et des fichiers `.xlsx` racine dupliqués/non référencés ; suppression du code mort `buildStrengths`/`buildImprovements`/`requireCurrentUser` et des replis pré-`crypto.randomUUID`/`getRandomValues` dans `store.js` ; retrait du chargement du classeur au bootstrap de `index.html` (résultat jamais consommé, `#datasetStats` n'existe dans aucune page — voir Prochaines étapes). `docs/AUDIT_DESIGN.md` archivé (n'était jamais commité).
@@ -288,10 +301,10 @@ La suite utilise des fakes : elle ne dépense aucun crédit et ne contacte pas O
 
 ## Prochaines étapes
 
-- **Chargement du classeur sur les pages qui n'en ont pas besoin.** `initializeApp()` (partagée par 6+ pages) appelle toujours `ensureDatasetLoaded()` — sur `index.html`, ça télécharge et parse 2,3 Mo (`Questions_InterviewPlus_Bilingual.xlsx` + `xlsx.full.min.js`) sans que rien n'affiche le résultat. Le retrait du code mort consommateur est fait ; découpler `ensureDatasetLoaded()` du bootstrap partagé pour les pages qui n'en ont pas besoin (accueil, profil...) reste à faire — ça touche une fonction utilisée par toutes les pages, donc à faire avec un test dédié plutôt qu'en diff rapide.
-- **QA visuelle** desktop et 390 px, jamais exécutée par manque de navigateur automatisé dans les environnements utilisés jusqu'ici.
+- **QA visuelle 390 px.** Le desktop clair/sombre a été validé le 30 août (voir État d'avancement) mais pas le mobile : `resize_window` de l'extension Chrome ne descend pas sous ~1372 px ici. À faire dans un vrai navigateur redimensionnable ou via les DevTools (device toolbar), en priorité sur la nav compacte (`assets/js/mobile-nav.js`), la grille de thèmes et la grille de réponses Cas.
 - **Cold start Netlify réel** via la CLI (`netlify dev`/`netlify deploy`), jamais rejoué localement faute de CLI installable dans le sandbox ; la Function est vérifiée fonctionnelle en production par requêtes live, mais pas par ce test spécifique.
 - **Bugs du site** signalés par l'utilisateur : à recenser et traiter (prochaine session de travail).
+- **Contrat HTTP loopback** (`tests/local-correction-contract-smoke.mjs`) : non rejoué dans la passe du 30 août, à relancer dans un environnement autorisant le loopback avant le prochain merge touchant la Function.
 - **Sessions payantes** : voir roadmap ci-dessous, toujours hors périmètre.
 
 ## Sessions payantes — roadmap

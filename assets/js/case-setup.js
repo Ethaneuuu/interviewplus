@@ -11,7 +11,7 @@ const timer = document.getElementById("caseTimer");
 const startButton = document.getElementById("startCase");
 const message = document.getElementById("caseSetupMessage");
 
-await initializeApp();
+await initializeApp({ loadDataset: false });
 requireAuthorizedAccess("case-setup.html");
 if (!getCurrentUser()) await continueAsGuest();
 wireAuthNavLink();

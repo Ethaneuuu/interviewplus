@@ -105,6 +105,12 @@ for (const file of manifest) {
   ["OPENROUTER_API_KEY", "SUPABASE_SERVICE_ROLE_KEY", /sk-or-[A-Za-z0-9]+/].forEach((secret) => ok(!text.match(secret), `${file} exposes a server secret`));
 }
 
+// The local dev server must serve every root HTML page the production build ships,
+// otherwise a nav link (e.g. new-session.html) 404s in local development.
+const serveLocalSource = await fs.readFile("serve-local.mjs", "utf8");
+const builtRootPages = manifest.filter((file) => file.endsWith(".html") && !file.includes("/"));
+builtRootPages.forEach((page) => ok(serveLocalSource.includes(`"${page}"`), `serve-local.mjs does not serve ${page}`));
+
 const netlifyBundle = await verifyNetlifyBundle();
 
 console.log(JSON.stringify({ ok: true, publicFiles: manifest.length, netlifyBundle }));

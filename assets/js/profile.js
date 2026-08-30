@@ -9,7 +9,7 @@ const metrics = document.getElementById("profileMetrics");
 const strongChart = document.getElementById("strongChart");
 const weakChart = document.getElementById("weakChart");
 
-await initializeApp();
+await initializeApp({ loadDataset: false });
 requireAuthorizedAccess("profile.html");
 if (!getCurrentUser()) {
   await continueAsGuest();

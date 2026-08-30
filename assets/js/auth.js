@@ -24,7 +24,7 @@ const destination = getReturnDestination();
 const appConfig = window.INTERVIEWPLUS_CONFIG || {};
 const restrictedAccess = appConfig.restrictedAccess === true;
 
-await initializeApp();
+await initializeApp({ loadDataset: false });
 
 const activeUser = getCurrentUser();
 if (activeUser && !isGuestUser(activeUser)) {

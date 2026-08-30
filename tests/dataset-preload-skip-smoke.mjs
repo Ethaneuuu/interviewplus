@@ -53,4 +53,15 @@ await store.initializeApp();
 assert(datasetFetchCalls === 1, `Expected exactly one dataset fetch on default initializeApp(), got ${datasetFetchCalls}`);
 assert(store.getDatasetMeta().questionCount === 3482, "Expected default initializeApp() to still load the full dataset");
 
+// Pages that never touch the question bank must opt out of the 2.3MB preload.
+for (const page of ["home", "new-session", "auth", "profile", "case-setup", "case-session"]) {
+  const source = await fs.readFile(path.join(projectRoot, `assets/js/${page}.js`), "utf8");
+  assert(
+    /initializeApp\(\{\s*[^}]*loadDataset:\s*false/.test(source),
+    `${page}.js must call initializeApp with loadDataset: false`
+  );
+}
+const profileHtml = await fs.readFile(path.join(projectRoot, "profile.html"), "utf8");
+assert(!profileHtml.includes("xlsx.full.min.js"), "profile.html must not load the xlsx bundle");
+
 console.log("dataset-preload-skip-smoke: OK");

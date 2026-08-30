@@ -15,6 +15,7 @@ const modernRoot = path.join(projectRoot, "Nouveau site", "dist");
 const publicRootFiles = new Set([
   "index.html",
   "auth.html",
+  "new-session.html",
   "setup.html",
   "session.html",
   "results.html",
