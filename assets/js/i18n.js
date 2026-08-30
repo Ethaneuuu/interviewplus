@@ -192,6 +192,8 @@ const pairs = [
   ["Lancer le cas pratique", "Start practical case"],
   ["Cas pratique en cours", "Practical case in progress"],
   ["Données du cas", "Case inputs"],
+  ["Énoncé", "Case prompt"],
+  ["Rappel des données chiffrées", "Key figures for reference"],
   ["Réponses", "Answers"],
   ["Calculs", "Calculations"],
   ["Recommandation", "Recommendation"],
@@ -247,7 +249,7 @@ export function caseOutputLabel(id, fallback = id) {
   if (pair) return t(...pair);
   const year = String(id).match(/^(.+)_y([1-5])(?:_pct)?$/);
   const yearPair = year && caseYearOutputLabels[year[1]];
-  if (yearPair) return `${t(...yearPair)} ${t("A", "Y")}${year[2]}${id.endsWith("_pct") ? " (%)" : ""}`;
+  if (yearPair) return `${t(...yearPair)} N+${year[2]}${id.endsWith("_pct") ? " (%)" : ""}`;
   return fallback;
 }
 

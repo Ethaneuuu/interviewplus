@@ -61,10 +61,12 @@ if (!language) {
     }
     return null;
   }
-  const statementTable = findDeep(elements.caseStatement, (el) => (el.innerHTML || "").includes(language === "fr" ? "Poste" : "Item"));
-  ok(statementTable, "Expected the case inputs table to be rendered");
-  const sectionTitle = elements.caseStatement.children.find((child) => child.textContent === (language === "fr" ? "Données (millions USD, sauf données par action)" : "Inputs (USD millions, except per-share data)"));
-  ok(sectionTitle, "Expected the inputs section title to be translated");
+  const figures = findDeep(elements.caseStatement, (el) => (el.innerHTML || "").includes(language === "fr" ? "Hypothèses retenues" : "Working assumptions"));
+  ok(figures, "Expected the working assumptions to be woven into the statement prose");
+  const noStandaloneInputsTable = !findDeep(elements.caseStatement, (el) => (el.innerHTML || "").includes(language === "fr" ? "Poste" : "Item"));
+  ok(noStandaloneInputsTable, "The separate case inputs table must be gone");
+  const reference = findDeep(elements.caseAnswers, (el) => el.textContent === (language === "fr" ? "Rappel des données chiffrées" : "Key figures for reference"));
+  ok(reference, "Expected a compact key-figures reference in the answers zone");
   const labels = [...collectLabels(elements.caseStatement), ...collectLabels(elements.caseAnswers)];
   ok(labels.length > 0);
   ok(labels.every((label) => !label.includes("_")));

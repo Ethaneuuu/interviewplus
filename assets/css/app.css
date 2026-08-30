@@ -1199,19 +1199,16 @@ button {
   font-size: 0.8rem;
 }
 
-.case-grid {
+/* Stacked case layout: Énoncé (full width) above Réponses (full width). */
+.case-stack {
   display: grid;
-  grid-template-columns: 1.25fr 0.85fr;
   gap: 20px;
-  align-items: start;
 }
 
 .case-context {
   display: grid;
   gap: 8px;
-  margin-bottom: 22px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--card-border);
+  margin-bottom: 18px;
 }
 
 .case-context h2 {
@@ -1223,6 +1220,56 @@ button {
   margin: 0;
   color: var(--ink-soft);
   line-height: 1.7;
+  font-size: 1rem;
+}
+
+.case-figures {
+  margin: 14px 0 0;
+  color: var(--ink-soft);
+  line-height: 1.9;
+  font-size: 0.95rem;
+}
+
+.case-figures b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.case-inputs-inline {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--card-border);
+  background: var(--surface-tint);
+  font-size: 0.9rem;
+}
+
+.case-inputs-inline > summary {
+  cursor: pointer;
+  font-family: "Space Mono", ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+
+.case-inputs-inline dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 18px;
+  margin: 12px 0 2px;
+}
+
+.case-inputs-inline dt {
+  color: var(--ink-soft);
+}
+
+.case-inputs-inline dd {
+  margin: 0;
+  text-align: right;
+  font-family: "Space Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 
 .case-table {
@@ -1699,10 +1746,6 @@ button {
   .grid-2,
   .grid-3,
   .grid-session {
-    grid-template-columns: 1fr;
-  }
-
-  .case-grid {
     grid-template-columns: 1fr;
   }
 

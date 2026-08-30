@@ -1,5 +1,5 @@
 import { continueAsGuest, finalizeCaseSession, getActiveSession, getCurrentUser, initializeApp, requireAuthorizedAccess, saveCaseAnswer } from "./store.js";
-import { caseInputLabel, caseOutputLabel, caseSectionLabel, caseSessionInstructions, caseSessionTitle, t } from "./i18n.js";
+import { caseInputLabel, caseOutputLabel, caseSessionInstructions, caseSessionTitle, t } from "./i18n.js";
 import { caseFyLabel } from "./case-templates.js";
 import { wireAuthNavLink } from "./nav.js";
 import "./theme.js";
@@ -48,12 +48,16 @@ function render() {
   }
 }
 
+function statementInputFields(statement) {
+  return statement.sections.flatMap((section) => section.fields);
+}
+
 function renderStatement(statement) {
   statementRoot.replaceChildren();
 
+  const context = document.createElement("div");
+  context.className = "case-context";
   if (statement.companyName) {
-    const context = document.createElement("div");
-    context.className = "case-context";
     const companyHeading = document.createElement("h2");
     companyHeading.textContent = statement.targetName
       ? `${statement.companyName} × ${statement.targetName}`
@@ -61,36 +65,55 @@ function renderStatement(statement) {
     const sector = document.createElement("p");
     sector.className = "eyebrow";
     sector.textContent = t(statement.sectorFr, statement.sectorEn);
-    const narrative = document.createElement("p");
-    narrative.className = "case-narrative";
-    narrative.textContent = t(statement.narrativeFr, statement.narrativeEn);
-    context.append(sector, companyHeading, narrative);
-    statementRoot.append(context);
+    context.append(sector, companyHeading);
   }
 
-  const heading = document.createElement("h3");
-  heading.textContent = t("Données du cas", "Case inputs");
-  statementRoot.append(heading);
-  statement.sections.forEach((section) => {
-    const sectionTitle = document.createElement("h4");
-    sectionTitle.textContent = caseSectionLabel(section.id, section.title);
-    const table = document.createElement("table");
-    table.className = "case-table case-table-excel";
-    table.innerHTML = `<thead><tr><th scope="col">${t("Poste", "Item")}</th><th scope="col">${t("Valeur", "Value")}</th></tr></thead>`;
-    const body = document.createElement("tbody");
-    section.fields.forEach((field) => {
-      const row = document.createElement("tr");
-      const label = document.createElement("th");
-      label.scope = "row";
-      label.textContent = caseInputLabel(field.id, field.label);
-      const value = document.createElement("td");
-      value.textContent = formatValue(field.value, field.format);
-      row.append(label, value);
-      body.append(row);
-    });
-    table.append(body);
-    statementRoot.append(sectionTitle, wrapScroll(table));
+  const narrative = document.createElement("p");
+  narrative.className = "case-narrative";
+  narrative.textContent = t(statement.narrativeFr, statement.narrativeEn);
+  context.append(narrative);
+
+  // Remaining numeric inputs are woven into the prose as a readable run-in list
+  // rather than a separate "Case inputs" table.
+  const fields = statementInputFields(statement);
+  if (fields.length) {
+    const figures = document.createElement("p");
+    figures.className = "case-figures";
+    figures.innerHTML = `${t("Hypothèses retenues", "Working assumptions")} : ${fields
+      .map((field) => `${caseInputLabel(field.id, field.label)} <b>${escapeHtml(formatValue(field.value, field.format))}</b>`)
+      .join(" · ")}.`;
+    context.append(figures);
+  }
+
+  statementRoot.append(context);
+}
+
+function renderInputReference(statement) {
+  const fields = statementInputFields(statement);
+  if (!fields.length) return;
+  const details = document.createElement("details");
+  details.className = "case-inputs-inline";
+  const summary = document.createElement("summary");
+  summary.textContent = t("Rappel des données chiffrées", "Key figures for reference");
+  const list = document.createElement("dl");
+  fields.forEach((field) => {
+    const dt = document.createElement("dt");
+    dt.textContent = caseInputLabel(field.id, field.label);
+    const dd = document.createElement("dd");
+    dd.textContent = formatValue(field.value, field.format);
+    list.append(dt, dd);
   });
+  details.append(summary, list);
+  answersRoot.append(details);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function wrapScroll(table) {
@@ -103,18 +126,12 @@ function wrapScroll(table) {
 function renderAnswers(statement, answers) {
   answersRoot.replaceChildren();
 
-  const resultsFields = statement.answerFields.filter((field) => field.category === "results");
-  const methodFields = statement.answerFields.filter((field) => field.category === "method");
+  renderInputReference(statement);
 
-  if (resultsFields.length) {
-    const heading = document.createElement("h3");
-    heading.textContent = t("Résultats", "Results");
-    answersRoot.append(heading, wrapScroll(buildFieldsTable(resultsFields, answers, statement.baseYear)));
-  }
-  if (methodFields.length) {
-    const heading = document.createElement("h3");
-    heading.textContent = t("Méthode", "Method");
-    answersRoot.append(heading, wrapScroll(buildFieldsTable(methodFields, answers, statement.baseYear)));
+  // One single answer table for every field the model requires, no separate
+  // "Method" block. Grading still reads field.category from the statement.
+  if (statement.answerFields.length) {
+    answersRoot.append(wrapScroll(buildFieldsTable(statement.answerFields, answers, statement.baseYear)));
   }
 
   if (!statement.recommendation) return;
@@ -144,9 +161,19 @@ function buildFieldsTable(fields, answers, baseYear) {
       return;
     }
     const [, base, yearIndex] = match;
-    if (!seriesBases.has(base)) seriesBases.set(base, []);
+    if (!seriesBases.has(base)) seriesBases.set(base, new Array(5).fill(null));
     seriesBases.get(base)[Number(yearIndex) - 1] = field;
   });
+
+  // Only keep a base as a 5-column grid row when every year is actually required.
+  // A partial series (e.g. only N+1 and N+5) becomes individual labelled rows so
+  // that every visible input cell is real and editable.
+  for (const [base, yearFields] of [...seriesBases]) {
+    if (yearFields.some((field) => field === null)) {
+      yearFields.forEach((field) => { if (field) singles.push(field); });
+      seriesBases.delete(base);
+    }
+  }
 
   const hasSeries = seriesBases.size > 0;
   const table = document.createElement("table");
@@ -174,7 +201,7 @@ function buildFieldsTable(fields, answers, baseYear) {
     const row = document.createElement("tr");
     const label = document.createElement("th");
     label.scope = "row";
-    label.textContent = caseOutputLabel(`${base}_y1`, base.replaceAll("_", " ").toUpperCase()).replace(/\s(A|Y)1$/, "");
+    label.textContent = caseOutputLabel(`${base}_y1`, base.replaceAll("_", " ").toUpperCase()).replace(/\sN\+1$/, "");
     row.append(label);
     for (let year = 1; year <= 5; year += 1) {
       const cell = document.createElement("td");
@@ -247,6 +274,10 @@ function formatTime(milliseconds) {
 }
 
 function formatValue(value, format) {
-  if (format === "percent") return `${(value * 100).toFixed(1)}%`;
-  return String(value);
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  if (format === "percent") return `${(number * 100).toFixed(1)}%`;
+  if (format === "multiple") return `${number.toFixed(1)}x`;
+  if (format === "number") return String(Math.round(number * 100) / 100);
+  return `$${Math.round(number).toLocaleString("en-US")}M`;
 }

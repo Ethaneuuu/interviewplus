@@ -29,8 +29,11 @@ function pct(value) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+// Relative period labels (N+1 .. N+5) rather than absolute fiscal years, so the
+// model never implies a specific calendar year and every forecast column is
+// consistent regardless of when the case is generated.
 function fyLabel(baseYear, offset) {
-  return `FY${String((baseYear + offset) % 100).padStart(2, "0")}`;
+  return `N+${offset}`;
 }
 
 function generateNarrative({ theme, difficulty, data, random, baseYear }) {

@@ -30,9 +30,17 @@
         <div class="timer-card"><span>Temps restant</span><strong id="caseTimerDisplay">--:--</strong></div>
       </section>
 
-      <section class="case-grid">
-        <article class="panel"><div id="caseStatement"></div></article>
-        <aside class="panel"><div class="section-head"><div><p class="eyebrow">Réponses</p><h2>Calculs</h2></div></div><form class="field-stack" id="caseAnswers"></form><div class="button-row"><button class="button button-primary" id="finishCase" type="button">Valider et recevoir la correction</button></div><p class="inline-note" id="caseMessage" role="status"></p></aside>
+      <section class="case-stack">
+        <article class="panel">
+          <div class="section-head"><div><p class="eyebrow">Cas pratique</p><h2>Énoncé</h2></div></div>
+          <div id="caseStatement"></div>
+        </article>
+        <article class="panel">
+          <div class="section-head"><div><p class="eyebrow">Saisie</p><h2>Réponses</h2></div></div>
+          <form class="field-stack" id="caseAnswers"></form>
+          <div class="button-row"><button class="button button-primary" id="finishCase" type="button">Valider et recevoir la correction</button></div>
+          <p class="inline-note" id="caseMessage" role="status"></p>
+        </article>
       </section>
     </main>
 
