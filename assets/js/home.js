@@ -1,48 +1,27 @@
 import {
   getCurrentUser,
   initializeApp,
-  isGuestUser,
 } from "./store.js";
-import { t } from "./i18n.js";
 import { wireAuthNavLink } from "./nav.js";
 import "./theme.js";
 import "./mobile-nav.js";
 
-const navCasePratiques = document.getElementById("navCasePratiques");
-const navProfil = document.getElementById("navProfil");
 const primarySessionLink = document.getElementById("primarySessionLink");
 const finalCtaLink = document.getElementById("finalCtaLink");
-const heroAccountNote = document.getElementById("heroAccountNote");
 const appConfig = window.INTERVIEWPLUS_CONFIG || {};
 
-const bootstrap = await initializeApp({ loadDataset: false });
-renderHome(bootstrap.backendMode);
+await initializeApp({ loadDataset: false });
+renderHome();
 animateHeroConsole();
 
-function renderHome(backendMode) {
-  const user = getCurrentUser();
-  const authenticated = Boolean(user) && !isGuestUser(user);
-  navCasePratiques.classList.toggle("hidden", !authenticated);
-  navProfil.classList.toggle("hidden", !authenticated);
+function renderHome() {
   wireAuthNavLink();
 
-  if (user) {
-    primarySessionLink.href = "./setup.html";
-    if (finalCtaLink) finalCtaLink.href = "./setup.html";
-    heroAccountNote.textContent = isGuestUser(user)
-      ? t("Mode invité actif : sessions conservées sur cet appareil.", "Guest mode active: sessions are stored on this device.")
-      : `${escapeHtml(user.name)} | ${backendMode === "supabase" ? t("compte synchronisé", "synced account") : t("mode local", "local mode")}`;
-    return;
-  }
-
-  primarySessionLink.href = appConfig.restrictedAccess ? "./auth.html?returnTo=setup.html" : "./setup.html";
-  if (finalCtaLink) finalCtaLink.href = primarySessionLink.href;
-  heroAccountNote.textContent = appConfig.restrictedAccess
-    ? t("Accès réservé aux personnes autorisées.", "Access is limited to authorized users.")
-    : t(
-      "Utilisable sans compte. Créez un compte pour synchroniser vos sessions.",
-      "Usable without an account. Create one to sync your sessions."
-    );
+  const target = getCurrentUser() || !appConfig.restrictedAccess
+    ? "./new-session.html"
+    : "./auth.html?returnTo=new-session.html";
+  primarySessionLink.href = target;
+  if (finalCtaLink) finalCtaLink.href = target;
 }
 
 function animateHeroConsole() {
@@ -73,13 +52,4 @@ function animateHeroConsole() {
       }
     }, 28);
   }
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }

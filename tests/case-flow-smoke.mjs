@@ -7,9 +7,9 @@ import { gradeCase } from "../netlify/functions/lib/case-grader.mjs";
 const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 for (const page of ["index.html", "auth.html", "setup.html", "session.html", "results.html", "profile.html", "case-setup.html", "case-session.html"]) {
   const html = await fs.readFile(path.join(projectRoot, page), "utf8");
-  ok(html.includes("case-setup.html"), `${page} misses Cas pratiques navigation`);
+  ok(html.includes("new-session.html"), `${page} misses the "S'entraîner" navigation entry`);
 }
-for (const page of ["case-setup.html", "case-session.html"]) {
+for (const page of ["new-session.html", "setup.html", "session.html", "case-setup.html", "case-session.html"]) {
   const html = await fs.readFile(path.join(projectRoot, page), "utf8");
   ok(html.includes('aria-current="page"'), `${page} misses active-page state`);
 }

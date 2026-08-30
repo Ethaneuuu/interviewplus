@@ -19,26 +19,44 @@
       <a class="brand" href="./index.html">
         <img class="brand-logo" src="./assets/img/interviewplus-logo.svg" alt="InterviewPlus">
       </a>
-      <nav class="topnav">
+      <nav class="topnav" aria-label="Navigation principale">
         <a class="nav-link" href="./index.html">Accueil</a>
-        <a class="nav-link" href="./new-session.html">Nouvelle session</a>
-        <a class="nav-link" href="./case-setup.html">Cas pratiques</a>
-        <a class="nav-link" href="./results.html">Sessions</a>
-        <a class="nav-link is-active" href="./profile.html">Profil</a>
-        <a class="nav-link" id="authNavLink" href="./auth.html">Connexion</a>
+        <a class="nav-link" href="./new-session.html">S'entraîner</a>
+        <a class="nav-link" id="authNavLink" href="./auth.html" hidden>Connexion</a>
       </nav>
     </header>
 
     <main class="page">
       <section class="page-header simple-header">
         <div>
-          <p class="eyebrow">Profil</p>
-          <h1 id="profileTitle">Votre progression</h1>
-          <p class="page-intro">Identifiez vos categories fortes et celles a retravailler.</p>
+          <p class="eyebrow">Mon espace</p>
+          <h1 id="profileTitle">Sessions &amp; progression</h1>
+          <p class="page-intro">Reprenez une session, consultez votre historique et vos axes de travail.</p>
         </div>
       </section>
 
       <section class="grid grid-3" id="profileMetrics"></section>
+
+      <section class="panel" id="resumeSection" hidden>
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Session en pause</p>
+            <h2 id="resumeTitle">Session en pause</h2>
+          </div>
+          <a class="button button-primary" id="resumeLink" href="./new-session.html">Reprendre</a>
+        </div>
+        <p class="inline-note" id="resumeMeta"></p>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Historique</p>
+            <h2>Dernieres sessions</h2>
+          </div>
+        </div>
+        <div id="sessionsList" class="history-list"></div>
+      </section>
 
       <section class="grid grid-2">
         <article class="panel">

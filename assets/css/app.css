@@ -715,48 +715,61 @@ button {
 
 .logo-marquee {
   overflow: hidden;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--card-border);
-  background: var(--card-bg);
-  box-shadow: var(--shadow);
+  /* Progressive fade on both edges so logos dissolve in and out of view. */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%);
 }
 
 .logo-track {
   display: flex;
   width: max-content;
-  gap: 14px;
-  padding: 16px;
+  align-items: center;
+  gap: 56px;
+  padding: 8px 28px;
   animation: logo-scroll 28s linear infinite;
 }
 
 .bank-logo {
   position: relative;
-  overflow: hidden;
-  min-width: 200px;
-  height: 88px;
+  min-width: 150px;
+  height: 56px;
   display: grid;
   place-items: center;
   margin: 0;
-  padding: 16px 26px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  background: #ffffff;
-  box-shadow: var(--shadow);
-  transition: border-color 0.2s ease;
-}
-
-.bank-logo:hover {
-  border-color: var(--primary);
+  padding: 0;
 }
 
 .bank-logo img {
-  position: relative;
   max-width: 150px;
-  max-height: 44px;
+  max-height: 34px;
   width: auto;
   height: auto;
   object-fit: contain;
-  filter: saturate(0.85) contrast(1.05);
+  /* Monochrome / black-and-white rendering, generic for any logo in the track. */
+  filter: grayscale(1) brightness(0) opacity(0.5);
+  transition: filter 0.2s ease;
+}
+
+.bank-logo:hover img {
+  filter: grayscale(1) brightness(0) opacity(0.8);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .bank-logo img {
+    filter: grayscale(1) brightness(0) invert(1) opacity(0.6);
+  }
+
+  :root:not([data-theme="light"]) .bank-logo:hover img {
+    filter: grayscale(1) brightness(0) invert(1) opacity(0.95);
+  }
+}
+
+:root[data-theme="dark"] .bank-logo img {
+  filter: grayscale(1) brightness(0) invert(1) opacity(0.6);
+}
+
+:root[data-theme="dark"] .bank-logo:hover img {
+  filter: grayscale(1) brightness(0) invert(1) opacity(0.95);
 }
 
 .bank-logo figcaption {

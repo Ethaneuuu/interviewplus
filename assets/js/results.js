@@ -90,7 +90,7 @@ function renderHistory(sessions, selectedSession) {
         <span class="empty-icon">01</span>
         <h3>${t("Aucune session enregistrée", "No saved sessions")}</h3>
         <p>${t("Lancez une première session pour voir vos scores, vos corrections et vos axes de progression ici.", "Start your first session to see scores, feedback and areas for improvement here.")}</p>
-        <a class="button button-primary" href="./setup.html">${t("Commencer une session", "Start a session")}</a>
+        <a class="button button-primary" href="./new-session.html">${t("Commencer une session", "Start a session")}</a>
       </div>
     `;
     return;
