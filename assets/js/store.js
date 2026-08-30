@@ -507,9 +507,34 @@ export function previousQuestion() {
   return getActiveSession();
 }
 
-export async function finalizeSession() {
-  await syncActiveSession(true);
-  return getActiveSession();
+export function getUnansweredQuestions() {
+  const session = state.activeSession;
+  if (!session || session.sessionType === "case" || !Array.isArray(session.questions)) return [];
+  return session.questions
+    .map((question, index) => (String(question.candidateAnswer || "").trim() ? null : index + 1))
+    .filter((number) => number !== null);
+}
+
+let finalizeInFlight = null;
+
+export async function finalizeSession({ requireComplete = true } = {}) {
+  if (finalizeInFlight) return finalizeInFlight;
+  finalizeInFlight = (async () => {
+    const session = state.activeSession;
+    if (requireComplete && session && session.status === "running" && session.sessionType !== "case") {
+      const missing = getUnansweredQuestions();
+      if (missing.length) {
+        throw Object.assign(new Error("INCOMPLETE_ANSWERS"), { missing });
+      }
+    }
+    await syncActiveSession(true);
+    return getActiveSession();
+  })();
+  try {
+    return await finalizeInFlight;
+  } finally {
+    finalizeInFlight = null;
+  }
 }
 
 export async function finalizeCaseSession() {

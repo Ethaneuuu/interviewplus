@@ -2,6 +2,7 @@ import {
   finalizeSession,
   getActiveSession,
   getCurrentUser,
+  getUnansweredQuestions,
   initializeApp,
   continueAsGuest,
   requireAuthorizedAccess,
@@ -35,10 +36,12 @@ const elements = {
   sideHint: document.getElementById("sideHint"),
   sessionLayout: document.getElementById("sessionLayout"),
   toggleNav: document.getElementById("toggleNav"),
+  sessionMessage: document.getElementById("sessionMessage"),
 };
 
 let timerId = null;
 let isFinalizing = false;
+let missingQuestions = new Set();
 
 await initializeApp();
 requireAuthorizedAccess("session.html");
@@ -69,6 +72,7 @@ function bindEvents() {
     const session = getActiveSession();
     if (!session || session.status !== "running") return;
     saveAnswer(session.currentIndex, elements.candidateAnswer.value);
+    if (missingQuestions.size) refreshMissingState();
     renderNavigator();
   });
 
@@ -92,7 +96,7 @@ function bindEvents() {
     const session = getActiveSession();
     if (!session || session.status !== "running") return;
     saveAnswer(session.currentIndex, elements.candidateAnswer.value);
-    await finalizeAndRedirect();
+    await finalizeAndRedirect({ requireComplete: true });
   });
 
   elements.toggleNav.addEventListener("click", () => {
@@ -103,10 +107,22 @@ function bindEvents() {
   });
 }
 
-async function finalizeAndRedirect() {
+async function finalizeAndRedirect({ requireComplete = true } = {}) {
   if (isFinalizing) return;
+
+  // Local validation BEFORE any API call: never send a correction request or
+  // change session state when required answers are missing.
+  if (requireComplete) {
+    const missing = getUnansweredQuestions();
+    if (missing.length) {
+      showMissingAnswers(missing);
+      return;
+    }
+  }
+
   isFinalizing = true;
   clearInterval(timerId);
+  clearMissingAnswers();
   const finishLabel = elements.finishNow.textContent;
   elements.finishNow.disabled = true;
   elements.finishNow.textContent = t("Correction en cours...", "Evaluation in progress...");
@@ -116,16 +132,54 @@ async function finalizeAndRedirect() {
   elements.sessionSubtitle.textContent = t("Correction en cours...", "Evaluation in progress...");
 
   try {
-    const finalized = await finalizeSession();
+    const finalized = await finalizeSession({ requireComplete });
     redirectToResults(finalized);
-  } catch {
+  } catch (error) {
     isFinalizing = false;
     elements.finishNow.disabled = false;
     elements.finishNow.textContent = finishLabel;
+    elements.nextQuestion.disabled = false;
+    elements.prevQuestion.disabled = false;
+    elements.candidateAnswer.disabled = false;
+    if (error?.message === "INCOMPLETE_ANSWERS") {
+      showMissingAnswers(error.missing || getUnansweredQuestions());
+      return;
+    }
+    startTimer();
     elements.sessionSubtitle.textContent = t(
       "La correction a échoué. Vous pouvez réessayer sans perdre vos réponses.",
       "The evaluation failed. You can try again without losing your answers."
     );
+  }
+}
+
+function showMissingAnswers(missing) {
+  missingQuestions = new Set(missing.map((number) => number - 1));
+  if (elements.sessionMessage) {
+    elements.sessionMessage.hidden = false;
+    elements.sessionMessage.textContent = `${t(
+      "Vous n'avez pas répondu aux questions suivantes. Merci d'y répondre ou, si vous souhaitez quitter, utilisez l'option Quitter.",
+      "You have not answered the following questions. Please answer them, or use the Quit option if you want to leave."
+    )} ${t("Questions", "Questions")} ${missing.join(", ")}.`;
+  }
+  goToQuestion(missing[0] - 1);
+  render();
+}
+
+function refreshMissingState() {
+  const stillMissing = getUnansweredQuestions();
+  if (!stillMissing.length) {
+    clearMissingAnswers();
+    return;
+  }
+  missingQuestions = new Set(stillMissing.map((number) => number - 1));
+}
+
+function clearMissingAnswers() {
+  missingQuestions = new Set();
+  if (elements.sessionMessage) {
+    elements.sessionMessage.hidden = true;
+    elements.sessionMessage.textContent = "";
   }
 }
 
@@ -140,7 +194,8 @@ function startTimer() {
     if (session.status === "running") {
       elements.timerDisplay.textContent = formatTime(session.remainingMs);
       if (session.remainingMs <= 0) {
-        await finalizeAndRedirect();
+        // Time is up: finalize with whatever was answered, no completeness gate.
+        await finalizeAndRedirect({ requireComplete: false });
       }
       return;
     }
@@ -227,6 +282,7 @@ function renderNavigator() {
     const suffix = question.candidateAnswer.trim()
       ? t("Réponse renseignée", "Answered")
       : t("À compléter", "To complete");
+    if (missingQuestions.has(index)) button.classList.add("is-missing");
     button.innerHTML = `<strong>Q${index + 1}</strong><div class="chart-meta">${suffix}</div>`;
     button.disabled = session.status === "running";
     button.addEventListener("click", async () => {
