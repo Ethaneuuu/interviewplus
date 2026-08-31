@@ -229,9 +229,20 @@ export async function registerUser({ name, email, password }) {
 
   if (isRemoteBackendEnabled()) {
     const result = await remoteSignUp({ name: name.trim(), email: normalizedEmail, password });
-    currentUser = result.session ? await getRemoteCurrentUser() : null;
+    if (!result.session) {
+      return { needsEmailConfirmation: true, pendingApproval: false, user: null };
+    }
+    try {
+      currentUser = await getRemoteCurrentUser();
+    } catch (error) {
+      if (error?.message === "ACCOUNT_PENDING_APPROVAL") {
+        return { needsEmailConfirmation: false, pendingApproval: true, user: null };
+      }
+      throw error;
+    }
     return {
-      needsEmailConfirmation: !result.session,
+      needsEmailConfirmation: false,
+      pendingApproval: false,
       user: currentUser,
     };
   }
@@ -253,6 +264,7 @@ export async function registerUser({ name, email, password }) {
   currentUser = sanitizeLocalUser(user);
   return {
     needsEmailConfirmation: false,
+    pendingApproval: false,
     user: currentUser,
   };
 }
@@ -713,7 +725,14 @@ export async function getProfileAnalytics() {
 
 async function hydrateCurrentUser() {
   if (isRemoteBackendEnabled()) {
-    currentUser = await getRemoteCurrentUser();
+    try {
+      currentUser = await getRemoteCurrentUser();
+    } catch (error) {
+      // A stale or since-deauthorized session must not break every page's boot;
+      // treat it the same as "signed out" here (getRemoteCurrentUser already
+      // called signOut() before throwing).
+      currentUser = null;
+    }
     remoteSessionsCache = currentUser ? await getUserSessions(currentUser.id) : [];
     const remoteActiveSession = remoteSessionsCache.find((session) => session.id === state.activeSession?.id && session.status === "review");
     if (remoteActiveSession) {

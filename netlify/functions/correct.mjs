@@ -92,7 +92,7 @@ async function authorize({ headers, env, fetchImpl, deadline, now }) {
   if (!authResponse.ok) throw new Error("AUTH_REQUIRED");
   const user = await authResponse.json();
   if (!user?.id || !user?.email) throw new Error("AUTH_REQUIRED");
-  const query = new URLSearchParams({ select: "email", email: `eq.${String(user.email).toLowerCase()}`, active: "eq.true", limit: "1" });
+  const query = new URLSearchParams({ select: "email", email: `ilike.${String(user.email).toLowerCase()}`, active: "eq.true", limit: "1" });
   const accessResponse = await fetchImpl(`${baseUrl}/rest/v1/authorized_users?${query}`, {
     headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
     signal: AbortSignal.timeout(deadlineTimeout(env.SUPABASE_AUTH_TIMEOUT_MS, 2500, deadline, now)),

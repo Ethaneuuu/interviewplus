@@ -211,11 +211,17 @@ Déploiement :
 
 1. Exécuter `supabase/schema.sql` dans le SQL Editor.
 2. Charger `Questions_InterviewPlus_Bilingual.xlsx` dans le bucket privé `interviewplus-private` au chemin exact configuré.
-3. Ajouter les e-mails autorisés dans `public.authorized_users` avec `active = true`.
+3. Optionnel : pré-approuver des e-mails dans `public.authorized_users` avec `active = true` avant même leur inscription ; sinon, l'inscription libre crée automatiquement leur ligne avec `active = false` (voir Authentification / approbation ci-dessous).
 4. Configurer Auth Site URL et Redirect URLs pour local, preview et production.
 5. Vérifier avec des comptes distincts que chacun ne lit/modifie que son profil, ses `session_runs` et l'objet privé autorisé.
 
 Le schéma active RLS sur `authorized_users`, `profiles` et `session_runs`. `public.is_authorized_user()` vérifie l'e-mail JWT actif ; les policies de session imposent `auth.uid() = user_id`. Les données Case sont stockées dans les colonnes additives `session_type`, `difficulty`, `template_id`, `case_seed`, `case_json`, `score_json`, `correction_mode`, `correction_provider`, `correction_model` et dans l'enveloppe complète `session_json`.
+
+### Authentification / approbation
+
+L'inscription est ouverte à n'importe quelle adresse (`allowPublicSignup: true`). Le déclencheur `handle_new_user` (sur `auth.users`) crée automatiquement, en plus de `profiles`, une ligne `authorized_users` pour l'adresse (mise en minuscules), avec `active = false`, sauf si une ligne existe déjà pour cette adresse quelle que soit sa casse (comparaison `lower(email)`) — auquel cas sa valeur `active` existante est conservée. Un compte `active = false` peut s'authentifier auprès de Supabase Auth mais `getRemoteCurrentUser()` (client) et `authorize()` (Function `/api/correct`) le rejettent et le déconnectent : `ACCOUNT_PENDING_APPROVAL` côté client, `403 ACCESS_NOT_AUTHORIZED` côté API.
+
+Il n'existe aucune interface d'administration dans l'app : l'administrateur approuve un compte en passant `active` à `true` sur sa ligne dans `Table Editor > authorized_users` (Supabase). Les deux vérifications d'autorisation (`backend.js` côté client, `correct.mjs` côté Function) comparent l'e-mail avec `ilike` (insensible à la casse) pour tolérer une ligne pré-approuvée saisie manuellement avec une casse différente de celle utilisée à l'inscription.
 
 La migration et les policies ont été contrôlées statiquement et avec des fakes. Elles n'ont pas été appliquées à un projet Supabase de staging dans cette passe.
 

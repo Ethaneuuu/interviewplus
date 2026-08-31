@@ -34,7 +34,6 @@ for select
 to authenticated
 using (
   lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-  and active = true
 );
 
 insert into storage.buckets (id, name, public)
@@ -78,6 +77,17 @@ begin
   set
     email = excluded.email,
     full_name = coalesce(excluded.full_name, public.profiles.full_name);
+
+  -- Self-signup lands pending by default; an email the admin already added
+  -- (in any case) via Table Editor keeps whatever `active` value they set.
+  insert into public.authorized_users (email, full_name, active)
+  select
+    lower(new.email),
+    coalesce(new.raw_user_meta_data ->> 'name', split_part(new.email, '@', 1)),
+    false
+  where not exists (
+    select 1 from public.authorized_users where lower(email) = lower(new.email)
+  );
 
   return new;
 end;

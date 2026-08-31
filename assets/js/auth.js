@@ -47,8 +47,8 @@ function configureAccessMode() {
   if (restrictedAccess) {
     document.getElementById("authIntro").textContent = signupAllowed
       ? t(
-        "Cet espace est privé. Seules les adresses préalablement autorisées peuvent créer un compte.",
-        "This is a private area. Only pre-approved email addresses can create an account."
+        "Cet espace est privé. Toute personne peut créer un compte, mais l'accès est activé par l'administrateur après inscription.",
+        "This is a private area. Anyone can create an account, but access is enabled by the administrator after signup."
       )
       : t(
         "Cet espace est privé. Utilisez les identifiants transmis par l'administrateur.",
@@ -78,7 +78,12 @@ async function handleLogin() {
       password,
     });
     redirectAfterAuth();
-  }, t("Email ou mot de passe incorrect.", "Incorrect email or password."));
+  }, (error) => error?.message === "ACCOUNT_PENDING_APPROVAL"
+    ? t(
+      "Votre compte n'est pas encore activé par l'administrateur. Réessayez plus tard.",
+      "Your account has not been activated by the administrator yet. Please try again later."
+    )
+    : t("Email ou mot de passe incorrect.", "Incorrect email or password."));
 }
 
 async function handleSignup() {
@@ -112,10 +117,18 @@ async function handleSignup() {
       return;
     }
 
+    if (result.pendingApproval) {
+      showMessage(t(
+        "Compte créé. Il sera activé par l'administrateur avant que vous puissiez vous entrainer.",
+        "Account created. It will be activated by the administrator before you can start training."
+      ), "success");
+      return;
+    }
+
     redirectAfterAuth();
   }, t(
-    "Impossible de créer le compte. Vérifiez que cette adresse a été autorisée par l'administrateur et qu'elle n'est pas déjà utilisée.",
-    "Unable to create the account. Check that this email was approved by the administrator and is not already in use."
+    "Impossible de créer le compte. Cette adresse est peut-être déjà utilisée.",
+    "Unable to create the account. This email may already be in use."
   ));
 }
 
@@ -189,7 +202,8 @@ async function withLoading(button, loadingText, action, errorText) {
   try {
     await action();
   } catch (error) {
-    if (errorText) showMessage(errorText, "error");
+    const text = typeof errorText === "function" ? errorText(error) : errorText;
+    if (text) showMessage(text, "error");
   } finally {
     button.disabled = false;
     button.textContent = originalText;

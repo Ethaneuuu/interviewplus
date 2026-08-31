@@ -100,13 +100,16 @@ export async function getRemoteCurrentUser() {
   const { data: authorization, error: authorizationError } = await supabase
     .from("authorized_users")
     .select("email,full_name,active")
-    .eq("email", String(user.email || "").toLowerCase())
-    .eq("active", true)
+    .ilike("email", String(user.email || "").toLowerCase())
     .maybeSingle();
 
   if (authorizationError || !authorization) {
     await supabase.auth.signOut();
     throw new Error("ACCESS_NOT_AUTHORIZED");
+  }
+  if (!authorization.active) {
+    await supabase.auth.signOut();
+    throw new Error("ACCOUNT_PENDING_APPROVAL");
   }
 
   let profile = null;
