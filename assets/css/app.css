@@ -391,6 +391,7 @@ button {
 }
 
 .password-toggle {
+  min-height: 44px;
   padding: 0 12px;
 }
 
@@ -414,25 +415,27 @@ button {
 
 .password-meter span {
   display: block;
-  width: 18%;
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: var(--danger);
-  transition: width 0.2s ease, background 0.2s ease;
+  transform: scaleX(0.18);
+  transform-origin: left;
+  transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .password-meter[data-score="1"] span {
-  width: 38%;
+  transform: scaleX(0.38);
   background: var(--warning);
 }
 
 .password-meter[data-score="2"] span {
-  width: 70%;
+  transform: scaleX(0.7);
   background: var(--primary);
 }
 
 .password-meter[data-score="3"] span {
-  width: 100%;
+  transform: scaleX(1);
   background: var(--success);
 }
 
@@ -822,7 +825,6 @@ button {
 
 .topic-card,
 .feature-card,
-.testimonial-card,
 .roadmap article {
   position: relative;
   overflow: hidden;
@@ -836,8 +838,7 @@ button {
 }
 
 .topic-card:hover,
-.feature-card:hover,
-.testimonial-card:hover {
+.feature-card:hover {
   border-color: color-mix(in srgb, var(--primary) 40%, var(--card-border));
 }
 
@@ -916,7 +917,6 @@ button {
 
 .topic-card p,
 .feature-card p,
-.testimonial-card p,
 .roadmap p {
   color: var(--ink-soft);
   line-height: 1.6;
@@ -973,19 +973,6 @@ button {
 
 .roadmap p {
   color: rgba(238, 244, 255, 0.72);
-}
-
-.testimonial-card {
-  min-height: 230px;
-}
-
-.testimonial-card p {
-  font-size: 1.08rem;
-  color: var(--ink);
-}
-
-.testimonial-card strong {
-  color: var(--primary-strong);
 }
 
 .page-header,
@@ -1510,8 +1497,9 @@ button {
 }
 
 .question-nav button {
+  position: relative;
   text-align: left;
-  padding: 14px 16px;
+  padding: 14px 16px 14px 32px;
 }
 
 .question-nav button.is-current {
@@ -1519,16 +1507,32 @@ button {
   background: color-mix(in srgb, var(--primary) 14%, transparent);
 }
 
-.question-nav button.is-scored {
-  border-left: 6px solid var(--success);
+.question-nav button.is-scored::before,
+.question-nav button.is-low::before,
+.question-nav button.is-missing::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transform: translateY(-50%);
 }
 
-.question-nav button.is-low {
-  border-left: 6px solid var(--danger);
+.question-nav button.is-scored::before {
+  background: var(--success);
+}
+
+.question-nav button.is-low::before {
+  background: var(--danger);
+}
+
+.question-nav button.is-missing::before {
+  background: var(--warning);
 }
 
 .question-nav button.is-missing {
-  border-left: 6px solid var(--warning);
   background: color-mix(in srgb, var(--warning) 14%, transparent);
 }
 
@@ -1582,18 +1586,18 @@ button {
 }
 
 .score-pill.score-high {
-  color: #fff;
-  background: var(--success);
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 16%, transparent);
 }
 
 .score-pill.score-mid {
-  color: #1b1300;
-  background: rgba(194, 123, 0, 0.24);
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
 }
 
 .score-pill.score-low {
-  color: #fff;
-  background: var(--danger);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
 }
 
 .result-answer-grid {
@@ -1780,14 +1784,14 @@ button {
   .result-feedback-stack,
   .results-review-layout,
   .topic-grid,
-  .roadmap,
   .grid-2,
   .grid-3,
   .grid-session {
     grid-template-columns: 1fr;
   }
 
-  .feature-grid {
+  .feature-grid,
+  .roadmap {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1821,7 +1825,8 @@ button {
     max-width: none;
   }
 
-  .feature-grid {
+  .feature-grid,
+  .roadmap {
     grid-template-columns: 1fr;
   }
 
