@@ -143,11 +143,11 @@ function renderAnswers(statement, answers) {
 
   renderInputReference(statement);
 
-  // One single answer table for every field the model requires, no separate
-  // "Method" block. Grading still reads field.category from the statement.
-  if (statement.answerFields.length) {
-    answersRoot.append(wrapScroll(buildFieldsTable(statement.answerFields, answers, statement.baseYear)));
-  }
+  // Answer tables for every field the model requires, no separate "Method"
+  // block. Grading still reads field.category from the statement.
+  buildFieldsTables(statement.answerFields, answers, statement.baseYear).forEach((table) => {
+    answersRoot.append(wrapScroll(table));
+  });
 
   if (!statement.recommendation) return;
   const label = document.createElement("label");
@@ -164,7 +164,11 @@ function renderAnswers(statement, answers) {
   answersRoot.append(label);
 }
 
-function buildFieldsTable(fields, answers, baseYear) {
+// Two independent tables instead of one shared-width grid: a single-value row
+// (e.g. Share price) used to inherit the 5-year series' column widths just to
+// stay in the same table, forcing a horizontal scroll on mobile to fill in a
+// value that only ever needed a label and one input.
+function buildFieldsTables(fields, answers, baseYear) {
   const seriesMatch = (field) => field.id.match(/^(.+)_y([1-5])$/);
   const seriesBases = new Map();
   const singles = [];
@@ -190,28 +194,29 @@ function buildFieldsTable(fields, answers, baseYear) {
     }
   }
 
-  const hasSeries = seriesBases.size > 0;
+  const tables = [];
+  if (seriesBases.size > 0) tables.push(buildSeriesTable(seriesBases, answers, baseYear));
+  if (singles.length > 0) tables.push(buildSinglesTable(singles, answers));
+  return tables;
+}
+
+function buildSeriesTable(seriesBases, answers, baseYear) {
   const table = document.createElement("table");
   table.className = "case-table case-table-excel case-table-grid";
 
   const thead = document.createElement("thead");
   const headRow = document.createElement("tr");
   headRow.innerHTML = `<th scope="col">${t("Sortie", "Output")}</th>`;
-  if (hasSeries) {
-    for (let year = 1; year <= 5; year += 1) {
-      const th = document.createElement("th");
-      th.scope = "col";
-      th.textContent = caseFyLabel(baseYear, year);
-      headRow.append(th);
-    }
-  } else {
-    headRow.innerHTML += `<th scope="col">${t("Valeur", "Value")}</th>`;
+  for (let year = 1; year <= 5; year += 1) {
+    const th = document.createElement("th");
+    th.scope = "col";
+    th.textContent = caseFyLabel(baseYear, year);
+    headRow.append(th);
   }
   thead.append(headRow);
   table.append(thead);
 
   const tbody = document.createElement("tbody");
-
   seriesBases.forEach((yearFields, base) => {
     const row = document.createElement("tr");
     const label = document.createElement("th");
@@ -226,19 +231,29 @@ function buildFieldsTable(fields, answers, baseYear) {
     }
     tbody.append(row);
   });
+  table.append(tbody);
+  return table;
+}
 
+function buildSinglesTable(singles, answers) {
+  const table = document.createElement("table");
+  table.className = "case-table case-table-excel case-table-grid";
+
+  const thead = document.createElement("thead");
+  thead.innerHTML = `<tr><th scope="col">${t("Sortie", "Output")}</th><th scope="col">${t("Valeur", "Value")}</th></tr>`;
+  table.append(thead);
+
+  const tbody = document.createElement("tbody");
   singles.forEach((field) => {
     const row = document.createElement("tr");
     const label = document.createElement("th");
     label.scope = "row";
     label.textContent = caseOutputLabel(field.id, field.label);
     const cell = document.createElement("td");
-    if (hasSeries) cell.colSpan = 5;
     cell.append(buildAnswerInput(field, answers));
     row.append(label, cell);
     tbody.append(row);
   });
-
   table.append(tbody);
   return table;
 }

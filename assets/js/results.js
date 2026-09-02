@@ -171,14 +171,8 @@ function renderSessionDetail(session) {
     }</p>
 
     <div class="result-answer-grid">
-      <section class="text-card">
-        <h3>${t("Votre réponse", "Your answer")}</h3>
-        <p>${escapeHtml(currentQuestion.candidateAnswer?.trim() || t("Aucune réponse n'a été fournie.", "No answer was provided."))}</p>
-      </section>
-      <section class="text-card">
-        <h3>${t("Correctif attendu", "Expected answer")}</h3>
-        <p>${escapeHtml(currentQuestion.expectedAnswer)}</p>
-      </section>
+      <section class="text-card"><h3>${t("Votre réponse", "Your answer")}</h3><p>${escapeHtml(currentQuestion.candidateAnswer?.trim() || t("Aucune réponse n'a été fournie.", "No answer was provided."))}</p></section>
+      <section class="text-card"><h3>${t("Correctif attendu", "Expected answer")}</h3><p>${escapeHtml(currentQuestion.expectedAnswer)}</p></section>
     </div>
 
     <div class="feedback-stack result-feedback-stack">

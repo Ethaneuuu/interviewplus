@@ -1293,7 +1293,7 @@ button {
   background: color-mix(in srgb, var(--surface-tint) 55%, transparent);
 }
 
-.case-table-grid td {
+.case-table-grid.case-table td {
   padding: 4px;
 }
 
@@ -1559,6 +1559,13 @@ button {
   top: 18px;
 }
 
+/* .panel sets overflow:hidden to clip decorative corners; that silently breaks
+   position:sticky on the nav below since it's the nearest scroll-containing
+   ancestor. This panel's content never overflows its rounded corners anyway. */
+#sessionDetailPanel {
+  overflow: visible;
+}
+
 .result-correction {
   display: grid;
   gap: 18px;
@@ -1603,6 +1610,7 @@ button {
 .result-answer-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 14px;
 }
 
